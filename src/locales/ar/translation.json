@@ -1,0 +1,80 @@
+{
+  "lightMode": "الوضع الفاتح",
+  "darkMode": "الوضع المظلم",
+  "light": "فاتح",
+  "dark": "مظلم",
+  "explore": "استكشف",
+  "loadingVideos": "جاري تحميل الفيديوهات...",
+  "preparingContent": "جاري تحضير المحتوى...",
+  "videosReady": "{{count}} فيديو جاهز",
+  "failedLoadVideos": "فشل تحميل الفيديوهات. يرجى المحاولة مرة أخرى.",
+  "somethingWrong": "حدث خطأ ما",
+  "tryAgain": "حاول مرة أخرى",
+  "checkingUsername": "جارٍ التحقق من توفر اسم المستخدم...",
+  "usernameAvailable": "اسم المستخدم متاح!",
+  "usernameNotAvailable": "اسم المستخدم مستخدم بالفعل",
+  "suggestedUsernames": "أسماء المستخدمين المقترحة:",
+  "enterUsername": "أدخل اسم المستخدم",
+  "usernameMinLength": "يجب أن يكون اسم المستخدم 3 أحرف على الأقل",
+  "search": {
+    "placeholder": "ابحث في الفيديوهات والمستخدمين...",
+    "all": "الكل",
+    "videos": "الفيديوهات",
+    "users": "المستخدمين",
+    "relevance": "الأكثر صلة",
+    "trending": "الأكثر انتشاراً",
+    "latest": "الأحدث",
+    "hashtags": "الهاشتاجات",
+    "popularHashtags": "الهاشتاجات الشائعة",
+    "noResults": "لا توجد نتائج",
+    "tryDifferentKeywords": "جرب كلمات أخرى أو فلاتر مختلفة",
+    "searching": "جاري البحث...",
+    "loading": "جاري التحميل...",
+    "loadMore": "تحميل المزيد",
+    "follow": "متابعة",
+    "following": "متابَع",
+    "views": "مشاهدة",
+    "likes": "إعجاب",
+    "startSearching": "ابدأ البحث",
+    "searchHint": "اكتب للبحث..."
+  },
+  "challenges": {
+    "title": "التحديات الأسبوعية",
+    "activeChallenges": "التحديات النشطة",
+    "pastWinners": "الفائزون السابقون",
+    "myEntries": "مشاركاتي",
+    "submit": "شارك الآن",
+    "submitted": "تم الإرسال",
+    "entries": "مشاركة",
+    "timeRemaining": "الوقت المتبقي",
+    "ended": "انتهى",
+    "winner": "الفائز",
+    "noActiveChallenges": "لا توجد تحديات نشطة حالياً",
+    "noPastWinners": "لا يوجد فائزون سابقون",
+    "types": {
+      "10_second_video": "أفضل فيديو 10 ثواني",
+      "best_editing": "أفضل مونتاج",
+      "best_comment": "أفضل تعليق"
+    },
+    "descriptions": {
+      "10_second_video": "أنشئ أكثر فيديو جذاباً في أقل من 10 ثواني!",
+      "best_editing": "أظهر مهاراتك في المونتاج بأفضل عمل!",
+      "best_comment": "اكتب أكثر تعليق يحصل على إعجابات هذا الأسبوع!"
+    },
+    "badges": {
+      "10_second_winner": "فائز أفضل فيديو 10 ثواني",
+      "editing_winner": "فائز أفضل مونتاج",
+      "comment_winner": "فائز أفضل تعليق"
+    },
+    "submitModal": {
+      "title": "شارك في التحدي",
+      "selectVideo": "اختر فيديو",
+      "selectComment": "اختر تعليق",
+      "writeComment": "اكتب تعليق",
+      "submit": "إرسال المشاركة",
+      "cancel": "إلغاء",
+      "success": "تم إرسال مشاركتك بنجاح!",
+      "error": "حدث خطأ أثناء إرسال المشاركة"
+    }
+  }
+}

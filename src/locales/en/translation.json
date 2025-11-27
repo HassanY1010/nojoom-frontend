@@ -1,0 +1,80 @@
+{
+  "lightMode": "Light Mode",
+  "darkMode": "Dark Mode",
+  "light": "Light",
+  "dark": "Dark",
+  "explore": "Explore",
+  "loadingVideos": "Loading videos...",
+  "preparingContent": "Preparing content...",
+  "videosReady": "{{count}} videos ready",
+  "failedLoadVideos": "Failed to load videos. Please try again.",
+  "somethingWrong": "Something went wrong",
+  "tryAgain": "Try Again",
+  "checkingUsername": "Checking username availability...",
+  "usernameAvailable": "Username is available!",
+  "usernameNotAvailable": "Username is already taken",
+  "suggestedUsernames": "Suggested usernames:",
+  "enterUsername": "Enter your username",
+  "usernameMinLength": "Username must be at least 3 characters",
+  "search": {
+    "placeholder": "Search videos and users...",
+    "all": "All",
+    "videos": "Videos",
+    "users": "Users",
+    "relevance": "Relevance",
+    "trending": "Trending",
+    "latest": "Latest",
+    "hashtags": "Hashtags",
+    "popularHashtags": "Popular Hashtags",
+    "noResults": "No results found",
+    "tryDifferentKeywords": "Try different keywords or filters",
+    "searching": "Searching...",
+    "loading": "Loading...",
+    "loadMore": "Load More",
+    "follow": "Follow",
+    "following": "Following",
+    "views": "views",
+    "likes": "likes",
+    "startSearching": "Start Searching",
+    "searchHint": "Type to search..."
+  },
+  "challenges": {
+    "title": "Weekly Challenges",
+    "activeChallenges": "Active Challenges",
+    "pastWinners": "Past Winners",
+    "myEntries": "My Entries",
+    "submit": "Submit Now",
+    "submitted": "Submitted",
+    "entries": "entries",
+    "timeRemaining": "Time Remaining",
+    "ended": "Ended",
+    "winner": "Winner",
+    "noActiveChallenges": "No active challenges at the moment",
+    "noPastWinners": "No past winners yet",
+    "types": {
+      "10_second_video": "Best 10-Second Video",
+      "best_editing": "Best Editing",
+      "best_comment": "Best Comment"
+    },
+    "descriptions": {
+      "10_second_video": "Create the most engaging video under 10 seconds!",
+      "best_editing": "Show off your editing skills with the best montage!",
+      "best_comment": "Write the most liked comment of the week!"
+    },
+    "badges": {
+      "10_second_winner": "Best 10-Second Video Winner",
+      "editing_winner": "Best Editing Winner",
+      "comment_winner": "Best Comment Winner"
+    },
+    "submitModal": {
+      "title": "Submit to Challenge",
+      "selectVideo": "Select Video",
+      "selectComment": "Select Comment",
+      "writeComment": "Write Comment",
+      "submit": "Submit Entry",
+      "cancel": "Cancel",
+      "success": "Your entry has been submitted successfully!",
+      "error": "An error occurred while submitting your entry"
+    }
+  }
+}
