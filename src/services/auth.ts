@@ -19,10 +19,9 @@ export const authService = {
       birthDate,
     });
     return response.data;
-  }
-},
+  },
 
-  async checkUsernameAvailability(username: string) {
+  checkUsernameAvailability: async (username: string) => {
     const response = await api.post('/auth/check-username', { username });
     return response.data;
   },
