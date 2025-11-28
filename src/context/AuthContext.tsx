@@ -284,7 +284,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (username: string, email: string, password: string, birthDate: string) => {
+ const register = async (username: string, email: string, password: string, birthDate: string) => {
   try {
     // استدعاء API التسجيل
     const response = await authService.register(username, email, password, birthDate);
