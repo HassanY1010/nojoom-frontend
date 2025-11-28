@@ -61,50 +61,59 @@ const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ دالة لجلب فيديو محدد
   const fetchSpecificVideo = async (videoId: number) => {
-    try {
-      setLoading(true);
-      const response = await api.get(`/videos/${videoId}`);
-      const specificVideo = response.data.video;
+  try {
+    setLoading(true);
 
-      if (specificVideo) {
-        // تعيين الفيديو المحدد كقائمة الفيديوهات
-        setVideos([specificVideo]);
-        setCurrentIndex(0);
-        trackVideoView(0);
-      }
-    } catch (error) {
-      console.error('Failed to fetch specific video:', error);
+    const response = await api.get(`/videos/${videoId}`);
+    const specificVideo = response.data.video;
+
+    if (specificVideo) {
+      // 🟦 تعيين فيديو واحد فقط
+      setVideos([specificVideo]);
+      setCurrentIndex(0);
+
+      // 🟦 تتبع المشاهدة للفيديو
+      trackVideoView(0);
+    } else {
       setError(t('failedLoadVideo'));
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('Failed to fetch specific video:', error);
+    setError(t('failedLoadVideo'));
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    fetchVideos();
-    if (user) {
-      fetchRecommendedVideos();
-      loadWatchHistory();
-    }
-  }, [user]);
+useEffect(() => {
+  fetchVideos();
 
-  const fetchVideos = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/videos');
-      const videosData = response.data.videos || [];
+  if (user) {
+    fetchRecommendedVideos();
+    loadWatchHistory();
+  }
+}, [user]);
+
+const fetchVideos = async () => {
+  try {
+    setLoading(true);
+
+    const response = await api.get('/videos'); // ← هنا تأتي البيانات من الباك
+
+    const videosData = response.data.videos || [];
+
+    if (videosData.length > 0) {
       setVideos(videosData);
-
-      if (videosData.length === 0) {
-        setError(t('noVideosAvailable'));
-      }
-    } catch (error) {
-      console.error('Failed to fetch videos:', error);
-      setError(t('failedLoadVideos'));
-    } finally {
-      setLoading(false);
+    } else {
+      setError(t('noVideosAvailable'));
     }
-  };
+  } catch (error) {
+    console.error('Failed to fetch videos:', error);
+    setError(t('failedLoadVideos'));
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchRecommendedVideos = async () => {
     try {
