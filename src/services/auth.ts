@@ -1,22 +1,17 @@
 import api from './api';
 
 export const authService = {
-  async login(email: string, password: string) {
-    const response = await api.post('/api/auth/login', { email, password });
-    return response.data;
-  },
-};
+    async login(email: string, password: string) {
+        const response = await api.post('/auth/login', { email, password });
+        return response.data;
+    },
 
-  
-  async register(username: string, email: string, password: string, birthDate: string) {
-    const response = await api.post('/auth/register', {
-      username,
-      email,
-      password,
-      birthDate
-    });
-    return response.data;
-  },
+    async register(formData: FormData) {
+        const response = await api.post('/auth/register', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
 
   async checkUsernameAvailability(username: string) {
     const response = await api.post('/auth/check-username', { username });
