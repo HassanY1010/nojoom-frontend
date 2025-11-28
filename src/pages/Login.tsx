@@ -29,12 +29,14 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error('❌ Login error:', err);
 
-      // ✅ التحقق من خطأ البريد غير المفعّل
-      if (err.response?.status === 403 && err.response?.data?.emailVerified === false) {
-        // عرض رسالة خاصة مع زر إعادة الإرسال
-        setError('emailNotVerified');
-        return;
-      }
+     // تجاهل التحقق من البريد عند تسجيل الدخول
+if (err.response?.status === 403 && err.response?.data?.emailVerified === false) {
+  // بدل منع الدخول، أظهر رسالة عادية
+  const errorMessage = t('loginFailed'); // أو رسالة عامة
+  setError(errorMessage);
+  // لا تعيد return
+}
+
 
       const errorMessage =
         err.response?.data?.error ||
@@ -89,16 +91,7 @@ const Login: React.FC = () => {
                   </p>
                 </div>
 
-                {/* ✅ زر إعادة إرسال OTP للبريد غير المفعّل */}
-                {error === 'emailNotVerified' && (
-                  <button
-                    type="button"
-                    onClick={handleResendVerification}
-                    className="text-blue-400 hover:text-blue-300 text-sm underline transition-colors text-right"
-                  >
-                    {t('resendVerificationCode') || 'Resend Verification Code →'}
-                  </button>
-                )}
+               
               </div>
             </motion.div>
           )}
