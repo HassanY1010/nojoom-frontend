@@ -23,12 +23,12 @@ interface ChatBoxProps {
   isPaused?: boolean;
 }
 
-const ChatBox: React.FC<ChatBoxProps> = ({ 
-  videoId, 
-  videoOwnerId, 
-  isVideoOwner, 
+const ChatBox: React.FC<ChatBoxProps> = ({
+  videoId,
+  videoOwnerId,
+  isVideoOwner,
   onClose,
-  isPaused = false 
+  isPaused = false
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -36,29 +36,26 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isChatPaused, setIsChatPaused] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const [messageDisplayCounts, setMessageDisplayCounts] = useState<{[key: number]: number}>({});
+  const [messageDisplayCounts, setMessageDisplayCounts] = useState<{ [key: number]: number }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // ✅ تعديل هنا لتجنب مشاكل TypeScript
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { user } = useAuth();
 
-  // قائمة الأموجيز المتحركة الشائعة
   const animatedEmojis = ['😂', '❤️', '🔥', '👏', '😍', '🎉', '👍', '🙏', '😢', '🤔', '👀', '💀'];
 
-  // تحديث حالة إيقاف الدردشة
   useEffect(() => {
     setIsChatPaused(isPaused);
-    
     if (isPaused) {
       const socket = socketService.getSocket();
-      if (socket) {
-        socket.emit('chat_paused', { videoId, paused: true });
-      }
+      socket?.emit('chat_paused', { videoId, paused: true });
     }
   }, [isPaused, videoId]);
 
   useEffect(() => {
     initializeSocket();
-    
     return () => {
       const socket = socketService.getSocket();
       if (socket) {
@@ -78,77 +75,51 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   const initializeSocket = async () => {
     try {
       const socket = await socketService.connect();
-      
       setIsConnected(true);
+      socket?.emit('join_video', videoId);
 
-      // الانضمام إلى غرفة الفيديو
-      socket.emit('join_video', videoId);
-
-      // استمع للرسائل الجديدة
-      socket.on('chat_message', (message: Message) => {
-        if (!isChatPaused) {
-          addMessageWithRotation(message);
-        }
+      socket?.on('chat_message', (message: Message) => {
+        if (!isChatPaused) addMessageWithRotation(message);
       });
 
-      // استمع للبث المباشر
-      socket.on('broadcast_message', (broadcast: Message) => {
-        if (!isChatPaused) {
-          addMessageWithRotation({ ...broadcast, type: 'admin' });
-        }
+      socket?.on('broadcast_message', (broadcast: Message) => {
+        if (!isChatPaused) addMessageWithRotation({ ...broadcast, type: 'admin' });
       });
 
-      // استمع لمؤشرات الكتابة
-      socket.on('user_typing', (data: { username: string; userId: number }) => {
-        setTypingUsers(prev => {
-          if (!prev.includes(data.username)) {
-            return [...prev, data.username];
-          }
-          return prev;
-        });
+      socket?.on('user_typing', (data: { username: string; userId: number }) => {
+        setTypingUsers(prev => (!prev.includes(data.username) ? [...prev, data.username] : prev));
       });
 
-      socket.on('user_stopped_typing', (data: { userId: number }) => {
+      socket?.on('user_stopped_typing', (data: { userId: number }) => {
         setTypingUsers(prev => prev.filter(username => {
           const typingUser = messages.find(msg => msg.sender_id === data.userId);
           return typingUser?.username !== username;
         }));
       });
 
-      // استمع لإشعارات إيقاف الدردشة
-      socket.on('chat_paused', (data: { videoId: number; paused: boolean }) => {
-        if (data.videoId === videoId) {
-          setIsChatPaused(data.paused);
-        }
+      socket?.on('chat_paused', (data: { videoId: number; paused: boolean }) => {
+        if (data.videoId === videoId) setIsChatPaused(data.paused);
       });
 
-      socket.on('connect_error', (error) => {
-        setIsConnected(false);
-      });
-
-    } catch (error) {
+      socket?.on('connect_error', () => setIsConnected(false));
+    } catch {
       setIsConnected(false);
     }
   };
 
-  // إضافة رسالة مع نظام التدوير (4 مرات ظهور)
   const addMessageWithRotation = (message: Message) => {
     const messageId = message.id || Date.now();
-    
     setMessages(prev => {
-      const existingMessageIndex = prev.findIndex(msg => 
-        msg.id === messageId || 
-        (msg.content === message.content && msg.sender_id === message.sender_id)
+      const existingMessageIndex = prev.findIndex(
+        msg => msg.id === messageId || (msg.content === message.content && msg.sender_id === message.sender_id)
       );
 
       if (existingMessageIndex !== -1) {
-        // تحديث عداد الظهور للرسالة الموجودة
         const updatedMessages = [...prev];
         const currentDisplayCount = messageDisplayCounts[messageId] || 1;
         const newDisplayCount = currentDisplayCount + 1;
 
         if (newDisplayCount >= 4) {
-          // حذف الرسالة بعد ظهورها 4 مرات
           updatedMessages.splice(existingMessageIndex, 1);
           setMessageDisplayCounts(prev => {
             const newCounts = { ...prev };
@@ -156,18 +127,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             return newCounts;
           });
         } else {
-          // تحديث عداد الظهور
           updatedMessages[existingMessageIndex] = {
             ...updatedMessages[existingMessageIndex],
             display_count: newDisplayCount,
             timestamp: Date.now()
           };
-          setMessageDisplayCounts(prev => ({
-            ...prev,
-            [messageId]: newDisplayCount
-          }));
-
-          // إعادة ترتيب عشوائي للرسائل
+          setMessageDisplayCounts(prev => ({ ...prev, [messageId]: newDisplayCount }));
           const randomIndex = Math.floor(Math.random() * updatedMessages.length);
           const [movedMessage] = updatedMessages.splice(existingMessageIndex, 1);
           updatedMessages.splice(randomIndex, 0, movedMessage);
@@ -175,59 +140,31 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
         return updatedMessages;
       } else {
-        // إضافة رسالة جديدة
-        const newMessageWithData = {
-          ...message,
-          id: messageId,
-          display_count: 1,
-          timestamp: Date.now()
-        };
-
-        setMessageDisplayCounts(prev => ({
-          ...prev,
-          [messageId]: 1
-        }));
-
-        // إضافة الرسالة في موضع عشوائي
+        const newMessageWithData = { ...message, id: messageId, display_count: 1, timestamp: Date.now() };
+        setMessageDisplayCounts(prev => ({ ...prev, [messageId]: 1 }));
         const randomIndex = Math.floor(Math.random() * (prev.length + 1));
         const newMessages = [...prev];
         newMessages.splice(randomIndex, 0, newMessageWithData);
-
-        // الحفاظ على حد أقصى للرسائل
         return newMessages.slice(-100);
       }
     });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  useEffect(() => scrollToBottom(), [messages]);
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (newMessage.trim() === '' || !isConnected || isChatPaused) return;
 
     try {
       const socket = socketService.getSocket();
-      if (socket) {
-        socket.emit('chat_message', {
-          videoId,
-          content: newMessage.trim()
-        });
-        setNewMessage('');
-        setShowEmojiPicker(false);
-        
-        // إيقاف مؤشر الكتابة
-        socket.emit('typing_stop', { videoId });
-        if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
-        }
-      }
+      socket?.emit('chat_message', { videoId, content: newMessage.trim() });
+      setNewMessage('');
+      setShowEmojiPicker(false);
+
+      socket?.emit('typing_stop', { videoId });
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -235,19 +172,13 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
   const handleTyping = () => {
     if (!isConnected || isChatPaused) return;
-    
     const socket = socketService.getSocket();
     if (socket && newMessage.trim()) {
       socket.emit('typing_start', { videoId });
-      
-      // إلغاء المؤقت السابق
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      // إعداد مؤقت لإيقاف مؤشر الكتابة
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
         socket.emit('typing_stop', { videoId });
+        typingTimeoutRef.current = null;
       }, 3000);
     }
   };
@@ -260,32 +191,23 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     }
   };
 
-  // دالة لعرض الرسائل بشكل عشوائي في الشريطين
   const getMessageStyle = (message: Message, index: number) => {
     const isLeft = Math.random() > 0.5;
-    
-    if (message.type === 'admin') {
-      return 'bg-yellow-500/20 border border-yellow-500/30 mx-auto max-w-xs text-yellow-300';
-    }
-    
-    if (message.sender_id === user?.id) {
-      return 'bg-blue-500/30 border border-blue-500/50 ml-auto mr-2 max-w-xs text-white';
-    }
-    
-    return isLeft 
+    if (message.type === 'admin') return 'bg-yellow-500/20 border border-yellow-500/30 mx-auto max-w-xs text-yellow-300';
+    if (message.sender_id === user?.id) return 'bg-blue-500/30 border border-blue-500/50 ml-auto mr-2 max-w-xs text-white';
+    return isLeft
       ? 'bg-green-500/20 border border-green-500/30 mr-auto ml-2 max-w-xs text-gray-100'
       : 'bg-purple-500/20 border border-purple-500/30 ml-auto mr-2 max-w-xs text-gray-100';
   };
 
-  // دالة لعرض الأموجيز المتحركة
   const renderAnimatedEmojis = (text: string) => {
     const words = text.split(' ');
     return words.map((word, index) => {
       const emojiRegex = /[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu;
       if (word.match(emojiRegex)) {
         return (
-          <span 
-            key={index} 
+          <span
+            key={index}
             className="inline-block animate-bounce mx-0.5 text-base sm:text-lg"
             style={{ animationDelay: `${index * 0.1}s` }}
           >
@@ -297,16 +219,13 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     });
   };
 
-  // تنظيف الرسائل القديمة تلقائياً
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
-      setMessages(prev => 
-        prev.filter(message => 
-          message.timestamp && (now - message.timestamp) < 5 * 60 * 1000 // 5 دقائق
-        )
+      setMessages(prev =>
+        prev.filter(message => message.timestamp && now - message.timestamp < 5 * 60 * 1000)
       );
-    }, 30000); // كل 30 ثانية
+    }, 30000);
 
     return () => clearInterval(cleanupInterval);
   }, []);
@@ -342,12 +261,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         {isChatPaused && (
           <div className="text-center bg-red-500/20 border border-red-500/50 rounded-lg p-2 sm:p-3 mb-2 sm:mb-4">
             <p className="text-red-300 text-xs sm:text-sm">
-              ⏸️ Chat is temporarily paused due to extended viewing time. 
+              ⏸️ Chat is temporarily paused due to extended viewing time.
               It will resume after refreshing the video.
             </p>
           </div>
         )}
-        
+
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 mt-4 sm:mt-8">
             <div className="text-2xl sm:text-4xl mb-1 sm:mb-2">💬</div>
@@ -362,8 +281,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             >
               <div className="flex items-start space-x-1 sm:space-x-2">
                 {message.type === 'user' && message.avatar && (
-                  <img 
-                    src={message.avatar} 
+                  <img
+                    src={message.avatar}
                     alt={message.username}
                     className="w-4 h-4 sm:w-6 sm:h-6 rounded-full flex-shrink-0"
                   />
@@ -385,9 +304,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                     )}
                     <div className="flex items-center space-x-1 sm:space-x-2">
                       <span className="text-gray-400 text-xs">
-                        {new Date(message.created_at).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
+                        {new Date(message.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit'
                         })}
                       </span>
                       {message.display_count && message.display_count > 1 && (
@@ -459,18 +378,16 @@ const ChatBox: React.FC<ChatBoxProps> = ({
               }}
               onBlur={() => {
                 const socket = socketService.getSocket();
-                if (socket) {
-                  socket.emit('typing_stop', { videoId });
-                }
+                socket?.emit('typing_stop', { videoId });
                 if (typingTimeoutRef.current) {
                   clearTimeout(typingTimeoutRef.current);
                 }
               }}
               placeholder={
-                isChatPaused 
-                  ? "Chat paused - refresh video to continue..." 
-                  : isConnected 
-                    ? "Type your message..." 
+                isChatPaused
+                  ? "Chat paused - refresh video to continue..."
+                  : isConnected
+                    ? "Type your message..."
                     : "Connecting to chat..."
               }
               disabled={!isConnected || isChatPaused}

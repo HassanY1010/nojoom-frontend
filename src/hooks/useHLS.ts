@@ -3,7 +3,7 @@ import { useEffect, useRef, RefObject } from 'react';
 import Hls from 'hls.js';
 
 interface UseHLSOptions {
-    videoRef: RefObject<HTMLVideoElement>;
+    videoRef: RefObject<HTMLVideoElement | null>; // ✅ السماح بأن يكون null
     manifestUrl: string | null;
     autoPlay?: boolean;
     onError?: (error: any) => void;

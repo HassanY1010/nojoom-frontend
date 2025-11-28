@@ -7,7 +7,11 @@ import { useAuth } from '../context/AuthContext';
 interface UserCardProps {
   user: User;
   onFollowChange: (userId: number, isFollowing: boolean) => void;
+  compact?: boolean;      // ✅ أضف
+  tiktokStyle?: boolean;  // ✅ أضف
 }
+
+
 
 const UserCard: React.FC<UserCardProps> = ({ user, onFollowChange }) => {
   const { user: currentUser } = useAuth();
@@ -72,7 +76,8 @@ const UserCard: React.FC<UserCardProps> = ({ user, onFollowChange }) => {
       <div className="flex items-center space-x-3">
         <div onClick={handleProfileClick} className="cursor-pointer">
           <img
-            src={getFullAvatarUrl(user.avatar)}
+src={getFullAvatarUrl(user.avatar!)}
+
             alt={user.username}
             className="w-12 h-12 rounded-full object-cover border-2 border-gray-600 hover:border-red-500 transition-colors"
             onError={(e) => {

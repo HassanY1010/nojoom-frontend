@@ -7,9 +7,11 @@ interface SearchBarProps {
   onQueryChange: (query: string) => void;
   onSearch: () => void;
   placeholder?: string;
-  className?: string;
-  size?: 'sm' | 'md' | 'lg';
-  autoFocus?: boolean;
+  compact?: boolean;
+  darkMode?: boolean;
+  className?: string;                // ✅ أضف
+  size?: 'sm' | 'md' | 'lg';         // ✅ أضف
+  autoFocus?: boolean;               // ✅ أضف
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
@@ -28,7 +30,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // الأحجام والأنماط بناءً على الحجم المحدد
-  const sizeStyles = {
+  const sizeStyles: Record<'sm' | 'md' | 'lg', { container: string; input: string; button: string; icon: string }> = {
     sm: {
       container: 'h-10 rounded-lg',
       input: 'py-2 text-sm',
@@ -72,7 +74,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     onQueryChange('');
     inputRef.current?.focus();
     if (hasSearched) {
-      onSearch(); // إعادة البحث عند المسح
+      onSearch();
     }
   };
 
@@ -181,7 +183,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         />
       </div>
 
-      {/* عداد الأحرف (للشاشات المتوسطة والكبيرة) */}
+      {/* عداد الأحرف */}
       {query.length > 0 && size !== 'sm' && (
         <div className="flex justify-between items-center mt-2 px-1">
           <span className={`
@@ -191,8 +193,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           `}>
             {query.length} حرف
           </span>
-          
-          {/* تحذير إذا تجاوز عدد الأحرف الحد المسموح */}
+
           {query.length > 100 && (
             <span className="text-red-400 text-xs">
               تجاوزت الحد المسموح للأحرف
@@ -201,7 +202,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         </div>
       )}
 
-      {/* اقتراحات سريعة (اختيارية) */}
+      {/* اقتراحات سريعة */}
       {size === 'lg' && (
         <div className="flex flex-wrap gap-2 justify-center mt-3">
           {['Trending', 'Music', 'Sports', 'Technology', 'News'].map((suggestion) => (

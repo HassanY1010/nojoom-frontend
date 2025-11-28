@@ -53,7 +53,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showControls, setShowControls] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<number | null>(null);
+
   const touchStartY = useRef(0);
   const { user } = useAuth();
 
@@ -92,19 +93,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [isPausedBySystem]);
 
   // إظهار/إخفاء عناصر التحكم تلقائياً
-  useEffect(() => {
-    if (showControls) {
-      controlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
-      }, 3000);
-    }
+useEffect(() => {
+  if (showControls) {
+    controlsTimeoutRef.current = window.setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  }
 
-    return () => {
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-    };
-  }, [showControls]);
+  return () => {
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = null;
+    }
+  };
+}, [showControls]);
+
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
@@ -356,14 +359,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     ⏭️ Watch Next Video
                   </button>
                 )}
-                {process.env.NODE_ENV === 'development' && (
-                  <button
-                    onClick={forceContinue}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-3 rounded-2xl font-bold hover:from-yellow-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
-                  >
-                    🚀 Continue Anyway (Dev)
-                  </button>
-                )}
+             {import.meta.env.MODE === 'development' && (
+  <button
+    onClick={forceContinue}
+    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-3 rounded-2xl font-bold hover:from-yellow-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
+  >
+    🚀 Continue Anyway (Dev)
+  </button>
+)}
+
               </div>
             </div>
           </div>

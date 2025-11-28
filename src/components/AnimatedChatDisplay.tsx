@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, TargetAndTransition } from 'framer-motion';
+
 
 export type ChatAnimationPattern = 'circle' | 'wave' | 'horizontal' | 'vertical';
 
@@ -17,6 +18,12 @@ interface AnimatedChatDisplayProps {
     videoHeight?: number;
 }
 
+interface Position {
+    x: number;
+    y: number;
+    rotate: number;
+}
+
 const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
     messages,
     pattern,
@@ -31,7 +38,7 @@ const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
     }, [messages]);
 
     // حساب موضع الرسالة بناءً على النمط
-    const getMessagePosition = (index: number, total: number) => {
+    const getMessagePosition = (index: number, total: number): Position => {
         const centerX = videoWidth / 2;
         const centerY = videoHeight / 2;
         const radius = Math.min(videoWidth, videoHeight) * 0.4;
@@ -76,8 +83,6 @@ const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
                 return { x: 0, y: 0, rotate: 0 };
         }
     };
-
-    // أنماط الحركة لكل نمط
     const getAnimationVariants = () => {
         switch (pattern) {
             case 'circle':
@@ -88,16 +93,15 @@ const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
                         opacity: 1,
                         transition: {
                             duration: 0.5,
-                            ease: 'easeOut'
+                            ease: 'easeOut' as any
                         }
                     },
                     exit: {
                         scale: 0,
                         opacity: 0,
-                        transition: { duration: 0.3 }
+                        transition: { duration: 0.3, ease: 'easeInOut' as any }
                     }
                 };
-
             case 'wave':
                 return {
                     initial: { x: videoWidth, opacity: 0 },
@@ -106,16 +110,15 @@ const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
                         opacity: 1,
                         transition: {
                             duration: 1,
-                            ease: 'easeInOut'
+                            ease: 'easeInOut' as any
                         }
                     },
                     exit: {
                         x: -videoWidth,
                         opacity: 0,
-                        transition: { duration: 0.5 }
+                        transition: { duration: 0.5, ease: 'easeOut' as any }
                     }
                 };
-
             case 'horizontal':
                 return {
                     initial: { x: videoWidth, opacity: 0 },
@@ -124,16 +127,15 @@ const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
                         opacity: 1,
                         transition: {
                             duration: 0.8,
-                            ease: 'linear'
+                            ease: 'linear' as any
                         }
                     },
                     exit: {
                         x: -videoWidth,
                         opacity: 0,
-                        transition: { duration: 0.5 }
+                        transition: { duration: 0.5, ease: 'easeOut' as any }
                     }
                 };
-
             case 'vertical':
                 return {
                     initial: { y: -100, opacity: 0 },
@@ -141,23 +143,18 @@ const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
                         y: 0,
                         opacity: 1,
                         transition: {
-                            duration: 0.8,
-                            ease: 'easeOut'
+                            duration: 0.5,
+                            ease: 'easeOut' as any
                         }
                     },
                     exit: {
                         y: videoHeight,
                         opacity: 0,
-                        transition: { duration: 0.5 }
+                        transition: { duration: 0.5, ease: 'easeInOut' as any }
                     }
                 };
-
             default:
-                return {
-                    initial: { opacity: 0 },
-                    animate: { opacity: 1 },
-                    exit: { opacity: 0 }
-                };
+                return { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } };
         }
     };
 
@@ -171,6 +168,14 @@ const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
                     const position = getMessagePosition(index, visibleMessages.length);
                     const variants = getAnimationVariants();
 
+                    // حل مشكلة TypeScript باستخدام TargetAndTransition
+                    const animationConfig: TargetAndTransition = {
+                        ...variants.animate,
+                        x: position.x,
+                        y: position.y,
+                        rotate: position.rotate
+                    };
+
                     return (
                         <motion.div
                             key={message.id}
@@ -181,12 +186,7 @@ const AnimatedChatDisplay: React.FC<AnimatedChatDisplayProps> = ({
                                 transformOrigin: 'center center'
                             }}
                             initial={variants.initial}
-                            animate={{
-                                ...variants.animate,
-                                x: position.x,
-                                y: position.y,
-                                rotate: position.rotate
-                            }}
+                            animate={animationConfig}
                             exit={variants.exit}
                         >
                             <div

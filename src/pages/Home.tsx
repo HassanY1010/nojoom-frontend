@@ -24,7 +24,7 @@ const Home: React.FC = () => {
   const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef(0);
-  const navigationTimeoutRef = useRef<NodeJS.Timeout>();
+const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ دالة للبحث عن فيديو معين والانتقال إليه
   const findAndSetVideo = (videoId: number) => {

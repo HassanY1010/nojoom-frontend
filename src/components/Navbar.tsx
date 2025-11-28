@@ -10,7 +10,8 @@ import NotificationBell from './NotificationBell';
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
-  const { currentLanguage, changeLanguage, isRTL } = useLanguage();
+const { currentLanguage, changeLanguage, isRTL } = useLanguage();
+
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -43,16 +44,17 @@ const Navbar: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-    setIsMenuOpen(false);
-  };
+ const handleLogout = () => {
+  logout();
+  navigate('/');
+  setIsMenuOpen(false);
+};
 
-  const handleLanguageChange = () => {
-    const newLanguage = currentLanguage === 'en' ? 'ar' : 'en';
-    changeLanguage(newLanguage);
-  };
+const handleLanguageChange = () => {
+  const newLanguage = currentLanguage === 'en' ? 'ar' : 'en';
+  changeLanguage(newLanguage);
+};
+
 
   const navItems = user ? [
     { path: '/', label: t('home'), emoji: '🏠', mobile: true },
@@ -100,12 +102,16 @@ const Navbar: React.FC = () => {
               </Link>
 
               {/* Language Toggle Button */}
-              <button
-                onClick={handleLanguageChange}
-                className="text-white bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105"
-              >
-                {currentLanguage === 'en' ? '🇸🇦 العربية' : '🇬🇧 English'}
-              </button>
+            <button
+  onClick={handleLanguageChange}
+  className="flex items-center justify-between p-3 text-white bg-gray-800 rounded-xl hover:bg-gray-700 transition-colors"
+>
+  <span>{t('language')}</span>
+  <span className="text-lg">
+    {currentLanguage === 'en' ? '🇸🇦 العربية' : '🇬🇧 English'}
+  </span>
+</button>
+
 
               {/* Theme Toggle Button */}
               <button
@@ -197,15 +203,16 @@ const Navbar: React.FC = () => {
           >
             <div className="flex flex-col space-y-3">
               {/* Language Toggle in Mobile Menu */}
-              <button
-                onClick={handleLanguageChange}
-                className="flex items-center justify-between p-3 text-white bg-gray-800 rounded-xl hover:bg-gray-700 transition-colors"
-              >
-                <span>{t('language')}</span>
-                <span className="text-lg">
-                  {currentLanguage === 'en' ? '🇸🇦 العربية' : '🇬🇧 English'}
-                </span>
-              </button>
+             <button
+  onClick={handleLanguageChange}
+  className="flex items-center justify-between p-3 text-white bg-gray-800 rounded-xl hover:bg-gray-700 transition-colors"
+>
+  <span>{t('language')}</span>
+  <span className="text-lg">
+    {currentLanguage === 'en' ? '🇸🇦 العربية' : '🇬🇧 English'}
+  </span>
+</button>
+
 
               {/* Theme Toggle in Mobile Menu */}
               <button

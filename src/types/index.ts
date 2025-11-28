@@ -1,4 +1,4 @@
-// src/types.ts
+// src/types/index.ts
 
 // ==================== أنواع المستخدمين ====================
 export interface User {
@@ -20,12 +20,20 @@ export interface User {
   is_following?: boolean;
   last_seen?: string;
   is_owner?: boolean;
-  social_links?: {
-    website?: string;
-    twitter?: string;
-    instagram?: string;
-    tiktok?: string;
-  };
+  social_links?: SocialLinks;
+}
+
+export interface UserProfile extends User {
+  profile_stats?: UserStats;
+  recent_videos?: Video[];
+  is_editable?: boolean;
+}
+
+export interface SocialLinks {
+  website?: string;
+  twitter?: string;
+  instagram?: string;
+  tiktok?: string;
 }
 
 // ==================== أنواع الفيديوهات ====================
@@ -50,12 +58,7 @@ export interface Video {
   updated_at: string;
 
   // بيانات العلاقات
-  owner?: {
-    id: number;
-    username: string;
-    avatar?: string;
-    role: string;
-  };
+  owner?: VideoOwner;
   username?: string;
   avatar?: string;
   is_liked?: boolean;
@@ -72,7 +75,14 @@ export interface Video {
   trending_score?: number;
 }
 
-export interface VideoUpload {
+export interface VideoOwner {
+  id: number;
+  username: string;
+  avatar?: string;
+  role: string;
+}
+
+export interface VideoUploadData {
   file: File;
   title: string;
   description?: string;
@@ -91,7 +101,7 @@ export interface VideoStats {
 }
 
 // ==================== أنواع الدردشة والرسائل ====================
-export interface Message {
+export interface BaseMessage {
   id: number;
   sender_id: number;
   video_id?: number;
@@ -116,20 +126,20 @@ export interface Message {
   receiver_avatar?: string;
 }
 
-export interface ChatMessage extends Message {
+export interface ChatMessage extends BaseMessage {
   video_id: number;
   display_count: number;
   timestamp: number;
 }
 
-export interface BroadcastMessage extends Message {
+export interface BroadcastMessage extends BaseMessage {
   type: 'admin';
   target: 'all' | 'specific';
   admin_username: string;
   admin_avatar?: string;
 }
 
-export interface DirectMessage extends Message {
+export interface DirectMessage extends BaseMessage {
   receiver_id: number;
   is_read: boolean;
   read_at?: string;
@@ -362,22 +372,19 @@ export interface ApiResponse<T = any> {
   error?: string;
   code?: string;
   message?: string;
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
+  pagination?: PaginationInfo;
+}
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
 }
 
 export interface PaginatedResponse<T> {
   data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
+  pagination: PaginationInfo;
 }
 
 // ==================== أنواع الأحداث في الوقت الحقيقي ====================
@@ -408,21 +415,25 @@ export interface SearchFilters {
   query?: string;
   type?: 'videos' | 'users' | 'messages';
   sort_by?: 'recent' | 'popular' | 'alphabetical';
-  date_range?: {
-    start: string;
-    end: string;
-  };
-  duration_range?: {
-    min: number;
-    max: number;
-  };
+  date_range?: DateRange;
+  duration_range?: DurationRange;
   aspect_ratio?: number[];
+}
+
+export interface DateRange {
+  start: string;
+  end: string;
+}
+
+export interface DurationRange {
+  min: number;
+  max: number;
 }
 
 export interface SearchResults {
   videos: Video[];
   users: User[];
-  messages: Message[];
+  messages: BaseMessage[];
   total: number;
   query: string;
 }
@@ -447,12 +458,7 @@ export interface ProfileForm {
   email: string;
   bio?: string;
   avatar?: File;
-  social_links?: {
-    website?: string;
-    twitter?: string;
-    instagram?: string;
-    tiktok?: string;
-  };
+  social_links?: SocialLinks;
 }
 
 export interface VideoForm {
@@ -541,27 +547,23 @@ export interface Report {
 export interface ExportData {
   type: 'videos' | 'messages' | 'stats';
   format: 'json' | 'csv' | 'pdf';
-  date_range: {
-    start: string;
-    end: string;
-  };
-  filters?: any;
+  date_range: DateRange;
+  filters?: ExportFilters;
 }
 
-// ==================== أنواع الأدوات المساعدة ====================
-export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-export type Required<T, K extends keyof T> = T & Required<Pick<T, K>>;
-export type Nullable<T> = { [K in keyof T]: T[K] | null };
+export interface ExportFilters {
+  aspect_ratios?: AspectRatios;
+  video_types?: string[];
+  user_roles?: string[];
+}
 
-// ==================== أنواع الثوابت ====================
-export const ASPECT_RATIOS = {
-  '16:9': 16 / 9,
-  '9:16': 9 / 16,
-  '1:1': 1,
-  '4:3': 4 / 3,
-  '21:9': 21 / 9
-} as const;
+export interface AspectRatios {
+  '1:1': number;
+  '4:3': number;
+  '21:9': number;
+}
 
+// ==================== الثوابت ====================
 export const VIDEO_TYPES = {
   MP4: 'video/mp4',
   WEBM: 'video/webm',
@@ -575,26 +577,51 @@ export const MESSAGE_TYPES = {
 } as const;
 
 export const USER_ROLES = {
-  USER: 'user',
+  ADMIN: 'admin',
   MODERATOR: 'moderator',
-  ADMIN: 'admin'
+  USER: 'user'
 } as const;
 
-// ==================== تصدير الأنواع الرئيسية ====================
-export type {
-  UserProfile,
-  VideoUpload,
-  ChatMessage,
-  BroadcastMessage,
-  DirectMessage,
-  Conversation,
-  ApiResponse,
-  PaginatedResponse,
-  SocketEvent,
-  SearchFilters,
-  AppState,
-  AuthState,
-  ChatState,
-  ExploreStats,
-  Hashtag
+export const VIDEO_ASPECT_RATIOS = {
+  SQUARE: 1,
+  PORTRAIT: 0.75,
+  LANDSCAPE: 1.77,
+  CINEMATIC: 2.33
+} as const;
+
+// ==================== أنواع الأدوات المساعدة ====================
+export type ApiError = {
+  code: string;
+  message: string;
+  details?: any;
 };
+
+export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
+
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+// ==================== أنواع المكونات ====================
+export interface ComponentProps {
+  className?: string;
+  children?: React.ReactNode;
+  style?: React.CSSProperties;
+}
+
+export interface ModalProps extends ComponentProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+}
+
+export interface ButtonProps extends ComponentProps {
+  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'warning';
+  size?: 'sm' | 'md' | 'lg';
+  disabled?: boolean;
+  loading?: boolean;
+  onClick?: () => void;
+  type?: 'button' | 'submit' | 'reset';
+}

@@ -30,6 +30,7 @@ const Register: React.FC = () => {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [birthDate, setBirthDate] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { register } = useAuth();
   const navigate = useNavigate();

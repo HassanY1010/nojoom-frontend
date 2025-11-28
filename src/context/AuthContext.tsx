@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 import { authService } from '../services/auth';
 import { recommendationApi } from '../services/api';
 
@@ -14,12 +15,12 @@ interface User {
   likes_count: number;
   views_count: number;
   total_watch_time: number;
-  role: string; // ✅ التأكد من وجود role
+  role: string;
   email_verified: boolean;
   language: 'ar' | 'en';
   theme: 'light' | 'dark';
-  is_banned?: boolean; // ✅ إضافة حقل is_banned
-  ban_reason?: string; // ✅ إضافة حقل ban_reason
+  is_banned?: boolean;
+  ban_reason?: string;
 }
 
 interface UserPreferences {
@@ -32,21 +33,21 @@ interface AuthContextType {
   user: User | null;
   preferences: UserPreferences | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, birthDate: string) => Promise<void>; // ✅ تم التعديل
   logout: () => void;
   loading: boolean;
   refreshUser: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
   updatePreferences: (preferences: Partial<UserPreferences>) => Promise<void>;
   refreshPreferences: () => Promise<void>;
-  // الدوال الجديدة للتحكم في الوقت
   checkTimeLimit: (videoId: number) => Promise<{ exceeded: boolean; remainingTime: number }>;
   resetWatchTime: (videoId: number) => Promise<void>;
-  // دوال مساعدة
   isAuthenticated: boolean;
   hasRole: (role: string) => boolean;
-  isAdmin: boolean; // ✅ إضافة خاصية isAdmin
+  isAdmin: boolean;
+  resendVerificationEmail: (email: string) => Promise<void>;
 }
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -80,7 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         document.documentElement.classList.remove('dark');
       }
     }
-  }, [user]);
+  }, [user?.theme]);
 
   const handleTokenRefresh = async () => {
     try {
@@ -114,18 +115,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         try {
-          // ✅ استخدام getProfile العادي أولاً
           const freshUserData = await authService.getProfile();
           const userDataToStore = freshUserData.user || freshUserData;
           setUser(userDataToStore);
           localStorage.setItem('userData', JSON.stringify(userDataToStore));
 
-          // تحميل التفضيلات
           await refreshPreferences();
         } catch (error: any) {
           console.error('Failed to fetch fresh user data:', error);
           if (error.response?.status === 401) {
-            // حاول تجديد التوكن مرة واحدة فقط
             try {
               await handleTokenRefresh();
               const freshUserData = await authService.getProfile();
@@ -158,7 +156,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       console.error('Failed to refresh preferences:', error);
       if (error.response?.status === 401) {
-        // حاول تجديد التوكن
         try {
           await handleTokenRefresh();
           const response = await recommendationApi.getUserPreferences();
@@ -224,6 +221,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error.response?.status === 401) {
         try {
           await handleTokenRefresh();
+          const updatedPreferences = { ...preferences, ...newPreferences } as UserPreferences;
           await recommendationApi.updateUserPreferences(updatedPreferences);
           localStorage.setItem('userPreferences', JSON.stringify(updatedPreferences));
         } catch (refreshError) {
@@ -244,7 +242,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('✅ Login API response (stringified):', JSON.stringify(response, null, 2));
       console.log('✅ Response keys:', Object.keys(response));
 
-      // ✅ البنية الصحيحة من السيرفر: { message, user, accessToken, refreshToken }
       const userData = response.user;
       const accessToken = response.accessToken;
       const refreshToken = response.refreshToken;
@@ -261,13 +258,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log('✅ Login API call successful');
 
-      // ✅ التأكد من أن userData تحتوي على role
       if (!userData.role) {
         console.warn('⚠️ Role is missing in login response, setting default role');
-        userData.role = 'user'; // قيمة افتراضية
+        userData.role = 'user';
       }
 
-      // ✅ حفظ التوكنات والبيانات
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('userData', JSON.stringify(userData));
@@ -275,14 +270,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log('✅ Tokens and user data saved to localStorage');
 
-      // تحميل التفضيلات بعد تسجيل الدخول
       await refreshPreferences();
 
       console.log('✅ Login successful - User role:', userData.role);
     } catch (error) {
       console.error('❌ Login failed:', error);
 
-      // ✅ تنظيف البيانات في حالة فشل تسجيل الدخول
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('userData');
@@ -291,36 +284,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (username: string, email: string, password: string) => {
-    try {
-      const { user: userData, accessToken, refreshToken } = await authService.register(username, email, password);
+  const register = async (username: string, email: string, password: string, birthDate: string) => {
+  try {
+    // استدعاء API التسجيل
+    const response = await authService.register(username, email, password, birthDate);
 
-      const userWithRole = userData.user || userData;
+    const userData = response.user || response;
+    const accessToken = response.accessToken;
+    const refreshToken = response.refreshToken;
 
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('userData', JSON.stringify(userWithRole));
-      setUser(userWithRole);
-
-      // تحميل التفضيلات بعد التسجيل
-      await refreshPreferences();
-
-      console.log('✅ Registration successful');
-    } catch (error) {
-      console.error('❌ Registration failed:', error);
-      throw error;
+    // التأكد من وجود role
+    if (!userData.role) {
+      userData.role = 'user';
     }
-  };
+
+    // حفظ التوكنات وبيانات المستخدم في localStorage
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('userData', JSON.stringify(userData));
+    setUser(userData);
+
+    // تحديث التفضيلات بعد التسجيل
+    await refreshPreferences();
+
+    console.log('✅ Registration successful');
+  } catch (error) {
+    console.error('❌ Registration failed:', error);
+    throw error;
+  }
+};
 
   const logout = () => {
     try {
-      // تنظيف جميع بيانات المصادقة
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('userData');
       localStorage.removeItem('userPreferences');
 
-      // تنظيف بيانات الوقت المؤقتة
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('video_watch_time_') || key.startsWith('video_start_time_')) {
           localStorage.removeItem(key);
@@ -335,32 +335,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('❌ Error during logout:', error);
     }
   };
-const resendVerificationEmail = async (email: string) => {
-  try {
-    await authService.resendVerificationEmail(email);
-    console.log('✅ Verification email resent successfully');
-  } catch (error) {
-    console.error('❌ Failed to resend verification email:', error);
-    throw error;
-  }
-};
 
-  // الدوال الجديدة للتحكم في الوقت
+  const resendVerificationEmail = async (email: string) => {
+    try {
+      await authService.sendVerificationEmail();
+
+      console.log('✅ Verification email resent successfully');
+    } catch (error) {
+      console.error('❌ Failed to resend verification email:', error);
+      throw error;
+    }
+  };
+
   const checkTimeLimit = async (videoId: number) => {
     try {
-      const response = await recommendationApi.post('/user/check-time-limit', { videoId });
+      const response = await axios.post('/user/check-time-limit', { videoId });
+
       return response.data;
     } catch (error) {
       console.error('Failed to check time limit:', error);
-      return { exceeded: false, remainingTime: 3 * 60 * 60 * 1000 }; // 3 ساعات افتراضياً
+      return { exceeded: false, remainingTime: 3 * 60 * 60 * 1000 };
     }
   };
 
   const resetWatchTime = async (videoId: number) => {
     try {
-      await recommendationApi.post('/user/reset-watch-time', { videoId });
+      
+await axios.post('/user/reset-watch-time', { videoId });
 
-      // تنظيف localStorage
+
       localStorage.removeItem(`video_watch_time_${videoId}`);
       localStorage.removeItem(`video_start_time_${videoId}`);
 
@@ -371,14 +374,12 @@ const resendVerificationEmail = async (email: string) => {
     }
   };
 
-  // دوال مساعدة
   const isAuthenticated = !!user;
 
   const hasRole = (role: string): boolean => {
     return user?.role === role;
   };
 
-  // ✅ خاصية جديدة للتحقق من أن المستخدم مدير
   const isAdmin = user?.role === 'admin';
 
   const value: AuthContextType = {
@@ -397,7 +398,7 @@ const resendVerificationEmail = async (email: string) => {
     isAuthenticated,
     hasRole,
     isAdmin,
-    resendVerificationEmail
+    resendVerificationEmail // ✅ الآن مضمنة في النوع
   };
 
   return (

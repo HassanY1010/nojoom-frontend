@@ -12,7 +12,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;
@@ -24,18 +24,22 @@ interface LanguageProviderProps {
 
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
   const { i18n } = useTranslation();
-  const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
 
-  const isRTL = currentLanguage === 'ar';
-  const direction = isRTL ? 'rtl' : 'ltr';
+  // اللغة الأساسية القادمة من i18n
+  const [language, setLanguage] = useState(i18n.language);
+
+  // حساب RTL بناءً على اللغة الحالية
+  const isRTL = language === 'ar';
+  const direction: 'rtl' | 'ltr' = isRTL ? 'rtl' : 'ltr';
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
-    setCurrentLanguage(lng);
+    setLanguage(lng);
+
     document.documentElement.dir = lng === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lng;
-    
-    // تطبيق الخط المناسب حسب اللغة
+
+    // تطبيق الخط حسب اللغة
     if (lng === 'ar') {
       document.body.style.fontFamily = "'Tajawal', 'Poppins', sans-serif";
     } else {
@@ -44,28 +48,34 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   };
 
   useEffect(() => {
-    // تعيين اتجاه الصفحة عند التحميل الأولي
+    // تحديث اتجاه الصفحة
     document.documentElement.dir = direction;
-    document.documentElement.lang = currentLanguage;
-    
-    // تطبيق الخط المناسب حسب اللغة
-    if (currentLanguage === 'ar') {
+    document.documentElement.lang = language;
+
+    // تطبيق الخط
+    if (language === 'ar') {
       document.body.style.fontFamily = "'Tajawal', 'Poppins', sans-serif";
     } else {
       document.body.style.fontFamily = "'Poppins', 'Tajawal', sans-serif";
     }
-    
-    // الاستماع لتغييرات اللغة
-    i18n.on('languageChanged', (lng) => {
-      setCurrentLanguage(lng);
-    });
-  }, [i18n, direction, currentLanguage]);
 
-  const value = {
-    currentLanguage,
+    // التزامن مع تغيير لغة i18next
+    const handleLanguageChange = (lng: string) => {
+      setLanguage(lng);
+    };
+
+    i18n.on('languageChanged', handleLanguageChange);
+
+    return () => {
+      i18n.off('languageChanged', handleLanguageChange);
+    };
+  }, [i18n, direction, language]);
+
+  const value: LanguageContextType = {
+    currentLanguage: language,
     changeLanguage,
     isRTL,
-    direction
+    direction,
   };
 
   return (

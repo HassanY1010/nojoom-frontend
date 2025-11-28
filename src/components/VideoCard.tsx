@@ -16,11 +16,14 @@ import { useVideoProgress } from '../hooks/useVideoProgress';
 interface VideoCardProps {
   video: Video;
   isActive: boolean;
+  compact?: boolean;
   autoPlay?: boolean;
+  tiktokStyle?: boolean;
+  showUserInfo?: boolean;
+  showStats?: boolean;
   onWatchTimeUpdate?: (watchTime: number) => void;
   onSwipeUp?: () => void;
   onInteraction?: (videoId: number, interactionType: string) => void;
-  compact?: boolean;
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({
@@ -55,22 +58,31 @@ const VideoCard: React.FC<VideoCardProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // 🚀 VIDEO TURBO ENGINE: HLS Streaming & Progress Tracking
   const [manifestUrl, setManifestUrl] = useState<string | null>(null);
   const [useHlsStreaming, setUseHlsStreaming] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('unknown');
 
-  // استخدام Video Progress Hook للاستئناف التلقائي
-  const videoProgressHook = user ? useVideoProgress(videoRef, video.id, user.id) : null;
+  // ✅ إصلاح: ترتيب المعاملات الصحيح لـ useVideoProgress
+  const videoProgressHook = user
+    ? useVideoProgress(videoRef, video.id, isActive)
+    : null;
 
-  // استخدام HLS Hook للتشغيل التدريجي
-  const { error: hlsError } = useHLS(videoRef, manifestUrl, {
-    autoPlay: isActive,
-    onError: (err) => {
-      console.log('HLS playback failed, falling back to MP4:', err);
+  // ✅ إصلاح: تمرير معامل واحد فقط
+  const hlsHook = useHLS({ videoRef, manifestUrl });
+
+  useEffect(() => {
+    if (manifestUrl && hlsHook && hlsHook.hls) {
+      // ✅ إصلاح: استخدام loadSource بدلاً من load
+      hlsHook.hls.loadSource(manifestUrl);
+    }
+  }, [manifestUrl, hlsHook]);
+
+  useEffect(() => {
+    if (!hlsHook && manifestUrl) {
+      console.log('Fallback to MP4 since HLS not initialized');
       setUseHlsStreaming(false);
     }
-  });
+  }, [hlsHook, manifestUrl]);
 
   // ✅ الكشف عن نوع الجهاز
   useEffect(() => {
@@ -128,7 +140,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     )
   };
 
-  // ✅ استخدام useCallback لتحسين الأداء
+  // ✅ استخدام useCallback لتحسين الأداء - تم التصحيح
   const fetchCommentCount = useCallback(async () => {
     try {
       const response = await api.get(`/videos/${video.id}/comments/count`);
@@ -240,7 +252,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
       onWatchTimeUpdate?.(totalWatchTime);
 
       // 🚀 VIDEO TURBO ENGINE: استخدام Progress Hook للحفظ الفوري
-      if (videoProgressHook && videoRef.current) {
+      if (videoProgressHook && typeof videoProgressHook.saveProgress === 'function') {
         videoProgressHook.saveProgress(true); // حفظ فوري
       } else {
         // Fallback للطريقة القديمة
@@ -497,17 +509,19 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
   // ✅ عرض مضغوط للبحث
   if (compact) {
+    const API_URL = import.meta.env.VITE_API_URL ?? '';
+
     return (
       <div className="flex bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
         <div className="relative w-40 h-24 flex-shrink-0">
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
-            muted={true}
+            muted
             playsInline
             preload="metadata"
           >
-            <source src={`${import.meta.env.VITE_API_URL}${video.path}`} type="video/mp4" />
+            <source src={`${API_URL}${video.path ?? ''}`} type="video/mp4" />
           </video>
           <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
             2:30

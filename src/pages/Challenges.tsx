@@ -1,36 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Clock, Users, Award } from 'lucide-react';
-import { getActiveChallenges, getPastChallenges } from '../services/challengeService';
+import { getActiveChallenges, getPastChallenges, Challenge } from '../services/challengeService';
 import ChallengeCard from '../components/ChallengeCard';
 import './Challenges.css';
 
-interface Challenge {
-    id: number;
-    title: string;
-    title_ar: string;
-    description: string;
-    description_ar: string;
-    type: '10_second_video' | 'best_editing' | 'best_comment';
-    start_date: string;
-    end_date: string;
-    status: string;
-    entries_count: number;
-    winner_username?: string;
-    winner_avatar?: string;
-    user_submitted?: boolean;
+// نوع آمن للبيانات المتوافقة مع ChallengeCard
+interface SafeChallenge {
+  id: number;
+  title: string;
+  title_ar: string;
+  description: string;
+  description_ar: string;
+  type: '10_second_video' | 'best_editing' | 'best_comment';
+  start_date: string;
+  end_date: string;
+  status: string;
+  entries_count: number;
+  winner_username?: string;
+  winner_avatar?: string;
+  user_submitted?: boolean;
 }
 
 const Challenges: React.FC = () => {
     const { t, i18n } = useTranslation();
-    const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
-    const [pastChallenges, setPastChallenges] = useState<Challenge[]>([]);
+    const [activeChallenges, setActiveChallenges] = useState<SafeChallenge[]>([]);
+    const [pastChallenges, setPastChallenges] = useState<SafeChallenge[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
 
     useEffect(() => {
         loadChallenges();
     }, []);
+
+    // دالة لتحويل Challenge إلى SafeChallenge
+    const convertToSafeChallenge = (challenge: Challenge): SafeChallenge | null => {
+        // تصفية الأنواع غير المسموحة
+        const allowedTypes = ['10_second_video', 'best_editing', 'best_comment'];
+        if (!allowedTypes.includes(challenge.type)) {
+            console.warn(`نوع التحدي غير مدعوم: ${challenge.type}`);
+            return null;
+        }
+
+        return {
+            id: challenge.id,
+            title: challenge.title || '',
+            title_ar: challenge.title_ar || '',
+            description: challenge.description || '',
+            description_ar: challenge.description_ar || '',
+            type: challenge.type as '10_second_video' | 'best_editing' | 'best_comment',
+            start_date: challenge.start_date || '',
+            end_date: challenge.end_date || '',
+            status: challenge.status || 'active',
+            entries_count: challenge.entries_count || challenge.entry_count || 0,
+            winner_username: challenge.winner_username,
+            winner_avatar: challenge.winner_avatar,
+            user_submitted: challenge.user_submitted || false
+        };
+    };
 
     const loadChallenges = async () => {
         try {
@@ -40,15 +67,31 @@ const Challenges: React.FC = () => {
                 getPastChallenges(10)
             ]);
 
-            if (activeRes.success) {
-                setActiveChallenges(activeRes.data);
+            if (activeRes?.success) {
+                // ✅ تحويل البيانات وتصفية الأنواع غير المسموحة
+                const safeActiveChallenges = (activeRes.data ?? [])
+                    .map(convertToSafeChallenge)
+                    .filter((challenge): challenge is SafeChallenge => challenge !== null);
+                
+                setActiveChallenges(safeActiveChallenges);
+            } else {
+                setActiveChallenges([]);
             }
 
-            if (pastRes.success) {
-                setPastChallenges(pastRes.data);
+            if (pastRes?.success) {
+                // ✅ استخراج المصفوفة من PaginatedResponse وتحويل البيانات
+                const safePastChallenges = (pastRes.data?.data ?? [])
+                    .map(convertToSafeChallenge)
+                    .filter((challenge): challenge is SafeChallenge => challenge !== null);
+                
+                setPastChallenges(safePastChallenges);
+            } else {
+                setPastChallenges([]);
             }
         } catch (error) {
             console.error('Error loading challenges:', error);
+            setActiveChallenges([]);
+            setPastChallenges([]);
         } finally {
             setLoading(false);
         }

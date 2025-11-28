@@ -5,14 +5,16 @@ interface GuestVideoCardProps {
   video: Video;
   isActive: boolean;
   onSwipeUp?: () => void;
+  autoPlay?: boolean; // ✅ أضفها كخيار اختياري
 }
+
 
 const GuestVideoCard: React.FC<GuestVideoCardProps> = ({ 
   video, 
   isActive,
   onSwipeUp
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [touchStartY, setTouchStartY] = useState(0);

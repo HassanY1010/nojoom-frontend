@@ -13,15 +13,15 @@ interface VideoProgress {
  * يقوم بتحميل آخر نقطة مشاهدة وحفظ التقدم تلقائياً
  */
 export const useVideoProgress = (
-    videoId: number,
-    videoRef: RefObject<HTMLVideoElement>,
-    isActive: boolean
+  videoRef: RefObject<HTMLVideoElement | null>, // ✅ السماح بأن يكون null
+  videoId: number,
+  isActive: boolean
 ) => {
-    const [progress, setProgress] = useState<VideoProgress>({
-        lastPosition: 0,
-        watchTime: 0,
-        completed: false
-    });
+  const [progress, setProgress] = useState<VideoProgress>({
+    lastPosition: 0,
+    watchTime: 0,
+    completed: false,
+  });
     const [isLoading, setIsLoading] = useState(true);
     const [lastSaveTime, setLastSaveTime] = useState(0);
 

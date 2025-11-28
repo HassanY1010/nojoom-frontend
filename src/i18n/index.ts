@@ -628,7 +628,7 @@ i18n
     resources,
     lng: 'ar', // ✅ اللغة الافتراضية العربية
     fallbackLng: 'ar', // ✅ اللغة البديلة العربية
-    debug: process.env.NODE_ENV === 'development',
+    debug: import.meta.env.MODE === 'development',
 
     interpolation: {
       escapeValue: false,
