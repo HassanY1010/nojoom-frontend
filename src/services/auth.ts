@@ -19,7 +19,7 @@ export const authService = {
       birthDate,
     });
     return response.data;
-  },
+  }
 };
 
   async checkUsernameAvailability(username: string) {
