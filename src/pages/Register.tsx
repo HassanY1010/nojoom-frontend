@@ -251,11 +251,7 @@ const Register: React.FC = () => {
         submitData.append('avatar', avatar);
       }
 
-      const response = await api.post('/auth/register', submitData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await authService.register(submitData);
 
       // ✅ تغيير: الانتقال إلى صفحة التحقق من البريد بدلاً من تسجيل الدخول مباشرة
       // Don't save tokens yet - user must verify email first
