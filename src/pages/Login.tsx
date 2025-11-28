@@ -212,49 +212,7 @@ const Login: React.FC = () => {
           </p>
         </motion.div>
 
-        {/* Demo Accounts */}
-        <motion.div
-          className="mt-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-        >
-          <p className="text-blue-400 text-xs text-center">
-            <strong className="block mb-1">{t('demoAccounts')}:</strong>
-            <span className="text-gray-400">
-              admin@example.com / password123
-            </span>
-          </p>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          className="mt-6 grid grid-cols-2 gap-3"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-        >
-          <button
-            onClick={() => {
-              setEmail('demo@example.com');
-              setPassword('password123');
-            }}
-            className="px-3 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors text-xs"
-          >
-            {t('fillDemo')}
-          </button>
-          <button
-            onClick={() => {
-              setEmail('');
-              setPassword('');
-              setError('');
-            }}
-            className="px-3 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors text-xs"
-          >
-            {t('clearAll')}
-          </button>
-        </motion.div>
-
+        
         {/* Security Notice */}
         <motion.div
           className="mt-6 text-center"
