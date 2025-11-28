@@ -6,9 +6,12 @@ export const authService = {
         return response.data;
     },
 
-    async register(formData: FormData) {
-        const response = await api.post('/auth/register', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+     async register(username: string, email: string, password: string, birthDate: string) {
+        const response = await api.post('/auth/register', {
+            username,
+            email,
+            password,
+            birthDate
         });
         return response.data;
     },
