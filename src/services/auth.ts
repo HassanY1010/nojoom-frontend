@@ -20,7 +20,7 @@ export const authService = {
     });
     return response.data;
   }
-};
+},
 
   async checkUsernameAvailability(username: string) {
     const response = await api.post('/auth/check-username', { username });
