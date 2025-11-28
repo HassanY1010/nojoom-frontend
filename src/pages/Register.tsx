@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { authService } from '../services/auth';
+import api from '../services/api';
 
 const Register: React.FC = () => {
   const { t } = useTranslation();
@@ -251,7 +251,13 @@ const Register: React.FC = () => {
         submitData.append('avatar', avatar);
       }
 
-      const response = await authService.register(submitData);
+      const response = await authService.register(
+        formData.username,
+        formData.email,
+        formData.password,
+        birthDate
+      );
+
 
       // ✅ تغيير: الانتقال إلى صفحة التحقق من البريد بدلاً من تسجيل الدخول مباشرة
       // Don't save tokens yet - user must verify email first
