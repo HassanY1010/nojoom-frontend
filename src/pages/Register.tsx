@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '../services/api';
+import api from '../api'; // عدّل المسار حسب مكان ملف api.ts
+
 
 const Register: React.FC = () => {
   const { t } = useTranslation();
