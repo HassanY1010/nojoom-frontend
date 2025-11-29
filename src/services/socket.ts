@@ -12,11 +12,13 @@ class SocketService {
         return null;
       }
 
-      this.socket = io('${import.meta.env.VITE_API_URL}', {
+      this.socket = io(import.meta.env.VITE_SOCKET_URL, {  // استخدم VITE_SOCKET_URL وليس VITE_API_URL
         auth: {
           token
         },
-        transports: ['websocket', 'polling'],
+        transports: ['websocket'],   // استخدم websocket فقط لتجنب المشاكل
+        secure: true,                // تأكيد استخدام WSS
+        withCredentials: true        // للسماح بالكعكات إذا موجودة
       });
 
       this.socket.on('connect', () => {
@@ -54,7 +56,7 @@ class SocketService {
     return this.socket?.connected || false;
   }
 
-  // ✅ دوال جديدة للتعليقات
+  // ==================== دوال التعليقات ====================
   joinVideoRoom(videoId: number) {
     if (this.socket) {
       this.socket.emit('join_video', videoId);
@@ -67,28 +69,24 @@ class SocketService {
     }
   }
 
-  // إرسال تعليق جديد
   sendComment(videoId: number, comment: any) {
     if (this.socket) {
       this.socket.emit('new_comment', { videoId, comment });
     }
   }
 
-  // الاستماع لتعليقات جديدة
   onNewComment(callback: (comment: any) => void) {
     if (this.socket) {
       this.socket.on('new_comment', callback);
     }
   }
 
-  // الاستماع لحذف التعليقات
-  onCommentDeleted(callback: (data: { commentId: number, videoId: number }) => void) {
+  onCommentDeleted(callback: (data: { commentId: number; videoId: number }) => void) {
     if (this.socket) {
       this.socket.on('comment_deleted', callback);
     }
   }
 
-  // إزالة المستمعين
   offNewComment() {
     if (this.socket) {
       this.socket.off('new_comment');
