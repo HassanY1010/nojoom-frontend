@@ -122,6 +122,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`,
         },
+        withCredentials: true, // ✅ إضافة هذا السطر
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const progress = (progressEvent.loaded / progressEvent.total) * 100;
