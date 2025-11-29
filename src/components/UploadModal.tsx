@@ -61,124 +61,127 @@ const UploadModal: React.FC<UploadModalProps> = ({
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) {
-      alert('Please select a video file first.');
-      return;
+  e.preventDefault();
+  if (!file) {
+    alert('Please select a video file first.');
+    return;
+  }
+
+  if (!user) {
+    alert('Please log in to upload videos.');
+    return;
+  }
+
+  // جلب التوكن من localStorage
+  const token = localStorage.getItem('accessToken');
+  if (!token) {
+    alert('Please log in to upload videos.');
+    return;
+  }
+
+  // التحقق من مدة الفيديو
+  if (videoDuration > 300) { // 5 دقائق كحد أقصى
+    alert('Video duration must be less than 5 minutes.');
+    return;
+  }
+
+  // التحقق من حجم الملف (10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    alert('File size must be less than 10MB.');
+    return;
+  }
+
+  setUploading(true);
+  setUploadProgress(0);
+  setUploadStage('preparing');
+
+  try {
+    const formData = new FormData();
+    formData.append('video', file);
+
+    if (description.trim()) {
+      formData.append('description', description.trim());
     }
 
-    if (!user) {
-      alert('Please log in to upload videos.');
-      return;
+    if (user && user.id) {
+      formData.append('userId', user.id.toString());
     }
 
-    // التحقق من مدة الفيديو
-    if (videoDuration > 300) { // 5 دقائق كحد أقصى
-      alert('Video duration must be less than 5 minutes.');
-      return;
+    if (isVideoOwner && currentVideoId) {
+      formData.append('replaceVideoId', currentVideoId.toString());
     }
 
-    // التحقق من حجم الملف (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB.');
-      return;
+    setUploadStage('uploading');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const response = await api.post('/videos/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${token}`, // ✅ إضافة JWT
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const progress = (progressEvent.loaded / progressEvent.total) * 100;
+          setUploadProgress(Math.round(progress));
+
+          if (progress >= 90) {
+            setUploadStage('processing');
+          }
+        }
+      },
+      timeout: 120000,
+    });
+
+    setUploadProgress(100);
+    setUploadStage('complete');
+
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    alert('Video uploaded successfully!');
+    onUploadSuccess();
+    resetForm();
+    onClose();
+
+  } catch (error: any) {
+    console.error('Upload failed:', error);
+
+    let errorMessage = 'Upload failed. Please try again.';
+    let errorDetails = '';
+
+    if (error.response) {
+      const status = error.response.status;
+
+      if (status === 413) {
+        errorMessage = 'File too large';
+        errorDetails = 'Please choose a video smaller than 10MB.';
+      } else if (status === 415) {
+        errorMessage = 'Unsupported file type';
+        errorDetails = 'Please use MP4, WebM, or OGG format.';
+      } else if (status === 401) {
+        errorMessage = 'Authentication required';
+        errorDetails = 'Please log in to upload videos.';
+      } else if (status === 429) {
+        errorMessage = 'Upload limit reached';
+        errorDetails = 'Please try again in a few minutes.';
+      } else {
+        errorMessage = 'Upload failed';
+        errorDetails = 'Please try again.';
+      }
+    } else if (error.request) {
+      errorMessage = 'Connection error';
+      errorDetails = 'Cannot connect to server. Please check your internet connection.';
+    } else if (error.code === 'ECONNABORTED') {
+      errorMessage = 'Upload timeout';
+      errorDetails = 'The upload took too long. Please try again.';
     }
 
-    setUploading(true);
+    alert(`${errorMessage}\n\n${errorDetails}`);
+  } finally {
+    setUploading(false);
     setUploadProgress(0);
     setUploadStage('preparing');
-
-    try {
-      const formData = new FormData();
-      formData.append('video', file);
-
-      if (description.trim()) {
-        formData.append('description', description.trim());
-      }
-
-      if (user && user.id) {
-        formData.append('userId', user.id.toString());
-      }
-
-      // ✅ التعديل: إرسال replaceVideoId فقط إذا كان isVideoOwner صحيحاً
-      if (isVideoOwner && currentVideoId) {
-        formData.append('replaceVideoId', currentVideoId.toString());
-      }
-
-      // مرحلة التحضير
-      setUploadStage('uploading');
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const response = await api.post('/videos/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const progress = (progressEvent.loaded / progressEvent.total) * 100;
-            setUploadProgress(Math.round(progress));
-
-            // تغيير المرحلة بناءً على التقدم
-            if (progress >= 90) {
-              setUploadStage('processing');
-            }
-          }
-        },
-        timeout: 120000, // 2 دقيقة
-      });
-
-      setUploadProgress(100);
-      setUploadStage('complete');
-
-      // تأخير لمشاهدة اكتمال التحميل
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      alert('Video uploaded successfully!');
-      onUploadSuccess();
-      resetForm();
-      onClose();
-
-    } catch (error: any) {
-      console.error('Upload failed:', error);
-
-      let errorMessage = 'Upload failed. Please try again.';
-      let errorDetails = '';
-
-      if (error.response) {
-        const status = error.response.status;
-        const data = error.response.data;
-
-        if (status === 413) {
-          errorMessage = 'File too large';
-          errorDetails = 'Please choose a video smaller than 10MB.';
-        } else if (status === 415) {
-          errorMessage = 'Unsupported file type';
-          errorDetails = 'Please use MP4, WebM, or OGG format.';
-        } else if (status === 401) {
-          errorMessage = 'Authentication required';
-          errorDetails = 'Please log in to upload videos.';
-        } else if (status === 429) {
-          errorMessage = 'Upload limit reached';
-          errorDetails = 'Please try again in a few minutes.';
-        } else {
-          errorMessage = 'Upload failed';
-          errorDetails = 'Please try again.';
-        }
-      } else if (error.request) {
-        errorMessage = 'Connection error';
-        errorDetails = 'Cannot connect to server. Please check your internet connection.';
-      } else if (error.code === 'ECONNABORTED') {
-        errorMessage = 'Upload timeout';
-        errorDetails = 'The upload took too long. Please try again.';
-      }
-
-      alert(`${errorMessage}\n\n${errorDetails}`);
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-      setUploadStage('preparing');
-    }
-  };
+  }
+};
 
   const resetForm = () => {
     setDescription('');
