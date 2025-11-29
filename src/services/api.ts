@@ -7,7 +7,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000, // ✅ زيادة المهلة لرفع الفيديوهات
+  withCredentials: true // ✅ إضافة هذا الخيار لدعم CORS
 });
 
 // Request interceptor to add auth token
@@ -17,12 +18,14 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // ✅ إضافة هيدرات إضافية لتحسين CORS
+    config.headers['X-Requested-With'] = 'XMLHttpRequest';
+    
     return config;
   },
   (error) => Promise.reject(error)
 );
-
-
 
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
@@ -57,7 +60,8 @@ api.interceptors.response.use(
         }, {
           headers: {
             'Content-Type': 'application/json'
-          }
+          },
+          withCredentials: true
         });
 
         const { accessToken } = response.data;
@@ -93,6 +97,8 @@ api.interceptors.response.use(
       console.error('❌ Resource not found:', error.response.config.url);
     } else if (error.response?.status >= 500) {
       console.error('❌ Server error:', error.response.data);
+    } else if (error.code === 'NETWORK_ERROR') {
+      console.error('❌ Network error - check CORS and server connectivity');
     }
 
     return Promise.reject(error);
@@ -237,10 +243,15 @@ export const videoApi = {
   // الحصول على فيديو محدد
   getVideo: (id: number) => api.get(`/videos/${id}`),
 
-  // رفع فيديو
+  // رفع فيديو - ✅ تحسين رفع الفيديوهات
   uploadVideo: (formData: FormData) =>
     api.post('/videos/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 
+        'Content-Type': 'multipart/form-data',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      timeout: 120000, // 2 دقائق لرفع الفيديو
+      withCredentials: true
     }),
 
   // حذف فيديو
