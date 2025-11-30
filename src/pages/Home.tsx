@@ -98,9 +98,19 @@ const fetchVideos = async () => {
   try {
     setLoading(true);
 
-    const response = await api.get('/videos'); // ← هنا تأتي البيانات من الباك
+    const response = await api.get('/videos');
+    let videosData = response.data.videos || [];
 
-    const videosData = response.data.videos || [];
+    // ✅ تكوين رابط كامل لكل فيديو وصورته المصغرة
+    videosData = videosData.map((v: any) => ({
+      ...v,
+      video_url: v.video_url?.startsWith('http')
+        ? v.video_url
+        : `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos${v.video_url}`,
+      thumbnail: v.thumbnail?.startsWith('http')
+        ? v.thumbnail
+        : `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos${v.thumbnail}`
+    }));
 
     if (videosData.length > 0) {
       setVideos(videosData);
