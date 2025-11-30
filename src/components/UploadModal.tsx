@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -62,108 +61,6 @@ const UploadModal: React.FC<UploadModalProps> = ({
     }
   };
 
-  const handleUploadToSupabase = async () => {
-    setError('');
-    if (!file || !user) {
-      setError('Please select a file and log in.');
-      return false;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File too large (max 10MB)');
-      return false;
-    }
-
-    if (videoDuration > 300) {
-      setError('Video too long (max 5 minutes)');
-      return false;
-    }
-
-    setUploading(true);
-    setUploadStage('uploading');
-
-    try {
-      // إنشاء اسم فريد للملف
-      const fileName = `${Date.now()}_${file.name}`;
-      
-      if (isVideoOwner && currentVideoId) {
-        // حذف الفيديو القديم
-        setUploadStage('preparing');
-        await supabase.storage.from('videos').remove([currentVideoId]);
-      }
-
-      // رفع الفيديو إلى Supabase
-      setUploadStage('uploading');
-      const { data, error: uploadError } = await supabase.storage
-        .from('videos')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      const publicUrl = supabase.storage.from('videos').getPublicUrl(fileName).data.publicUrl;
-
-      // حفظ البيانات في قاعدة البيانات عبر API
-      setUploadStage('processing');
-      
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        throw new Error('Authentication token not found');
-      }
-
-      const formData = new FormData();
-      formData.append('videoUrl', publicUrl);
-      formData.append('fileName', fileName);
-
-      if (description.trim()) {
-        formData.append('description', description.trim());
-      }
-
-      if (user && user.id) {
-        formData.append('userId', user.id.toString());
-      }
-
-      if (isVideoOwner && currentVideoId) {
-        formData.append('replaceVideoId', currentVideoId.toString());
-      }
-
-      const response = await api.post('/videos/save-video', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`,
-        },
-        withCredentials: true,
-      });
-
-      setUploadProgress(100);
-      setUploadStage('complete');
-
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      console.log('✅ Video uploaded successfully:', response.data);
-      return true;
-
-    } catch (err: any) {
-      console.error('❌ Upload failed:', err);
-      let errorMessage = 'Upload failed. Please try again.';
-
-      if (err.message?.includes('storage')) {
-        errorMessage = 'Storage error: Unable to upload video.';
-      } else if (err.response?.status === 413) {
-        errorMessage = 'File too large. Please choose a video smaller than 10MB.';
-      } else if (err.response?.status === 401) {
-        errorMessage = 'Authentication required. Please log in again.';
-      }
-
-      setError(errorMessage);
-      return false;
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -178,8 +75,15 @@ const UploadModal: React.FC<UploadModalProps> = ({
       return;
     }
 
+    // جلب التوكن من localStorage
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setError('Please log in to upload videos.');
+      return;
+    }
+
     // التحقق من مدة الفيديو
-    if (videoDuration > 300) {
+    if (videoDuration > 300) { // 5 دقائق كحد أقصى
       setError('Video duration must be less than 5 minutes.');
       return;
     }
@@ -195,16 +99,57 @@ const UploadModal: React.FC<UploadModalProps> = ({
     setUploadStage('preparing');
 
     try {
-      const uploadSuccess = await handleUploadToSupabase();
-      
-      if (uploadSuccess) {
-        onUploadSuccess();
-        resetForm();
-        onClose();
+      const formData = new FormData();
+      formData.append('video', file);
+
+      if (description.trim()) {
+        formData.append('description', description.trim());
       }
+
+      if (user && user.id) {
+        formData.append('userId', user.id.toString());
+      }
+
+      if (isVideoOwner && currentVideoId) {
+        formData.append('replaceVideoId', currentVideoId.toString());
+      }
+
+      setUploadStage('uploading');
+
+      // ✅ استخدام axios مباشرة مع إعدادات محسنة
+      const response = await api.post('/videos/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`,
+        },
+        withCredentials: true, // ✅ إضافة هذا السطر
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const progress = (progressEvent.loaded / progressEvent.total) * 100;
+            setUploadProgress(Math.round(progress));
+
+            if (progress >= 90) {
+              setUploadStage('processing');
+            }
+          }
+        },
+        timeout: 120000,
+      });
+
+      setUploadProgress(100);
+      setUploadStage('complete');
+
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      console.log('✅ Video uploaded successfully:', response.data);
+      onUploadSuccess();
+      resetForm();
+      onClose();
 
     } catch (error: any) {
       console.error('❌ Upload failed:', error);
+      setUploading(false);
+
       let errorMessage = 'Upload failed. Please try again.';
       let errorDetails = '';
 
@@ -419,8 +364,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
               <div className="flex justify-between items-center text-xs sm:text-sm">
                 <span className="text-gray-300 font-medium truncate">
                   {uploadStage === 'preparing' && 'Preparing upload...'}
-                  {uploadStage === 'uploading' && 'Uploading to Supabase...'}
-                  {uploadStage === 'processing' && 'Saving video data...'}
+                  {uploadStage === 'uploading' && 'Uploading video...'}
+                  {uploadStage === 'processing' && 'Processing video...'}
                   {uploadStage === 'complete' && 'Upload complete!'}
                 </span>
                 <span className="text-white font-bold flex-shrink-0 ml-2">
