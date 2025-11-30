@@ -379,34 +379,29 @@ const Profile: React.FC = () => {
           </div>
         )}
 
-        {/* Profile Header */}
-        <div className="bg-gray-900 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className={`flex flex-col sm:flex-row items-start ${isRTL ? 'sm:space-x-reverse sm:space-x-6' : 'sm:space-x-6'} space-y-4 sm:space-y-0`}>
-            {/* Avatar */}
-            <div className="flex justify-center sm:justify-start w-full sm:w-auto">
-              <div className="relative">
-                <img
-                  src={
-                    profileUser.avatar
-                      ? `${import.meta.env.VITE_API_URL}${profileUser.avatar}`
-                      : '/default-avatar.png'
-                  }
-                  alt={profileUser.username}
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-gray-600"
-                  onError={(e) => {
-                    e.currentTarget.src = '/default-avatar.png';
-                  }}
-                />
-              </div>
-            </div>
+       {/* Profile Header */}
+<div className="bg-gray-900 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+  <div className={`flex flex-col sm:flex-row items-start ${isRTL ? 'sm:space-x-reverse sm:space-x-6' : 'sm:space-x-6'} space-y-4 sm:space-y-0`}>
+    
+    {/* Avatar */}
+    <div className="flex justify-center sm:justify-start w-full sm:w-auto">
+      <div className="relative">
+        <img
+          src={profileUser.avatar || '/default-avatar.png'}
+          alt={profileUser.username}
+          className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-gray-600"
+          onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
+        />
+      </div>
+    </div>
 
-            <div className="flex-1 w-full">
-              <div className="flex flex-col sm:flex-row items-start justify-between space-y-4 sm:space-y-0">
-                <div className="w-full text-center sm:text-left">
-                  <h1 className="text-xl sm:text-2xl font-bold">@{profileUser.username}</h1>
-                  <p className="text-gray-400 mt-1 text-sm sm:text-base">
-                    {profileUser.bio || t('noBioYet')}
-                  </p>
+    <div className="flex-1 w-full">
+      <div className="flex flex-col sm:flex-row items-start justify-between space-y-4 sm:space-y-0">
+        <div className="w-full text-center sm:text-left">
+          <h1 className="text-xl sm:text-2xl font-bold">@{profileUser.username}</h1>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+            {profileUser.bio || t('noBioYet')}
+          </p>
 
                   {/* Social Links */}
                   {Object.keys(socialLinks).length > 0 && (
