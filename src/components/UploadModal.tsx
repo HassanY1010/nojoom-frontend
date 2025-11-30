@@ -8,7 +8,7 @@ interface UploadModalProps {
   file: File | null;
   onUploadSuccess: () => void;
   isVideoOwner?: boolean;
-  currentVideoId?: string;
+  currentVideoId?: number;
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({
