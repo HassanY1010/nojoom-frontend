@@ -1,3 +1,4 @@
+// إصلاح كامل لـ useVideoProgress.ts
 // hooks/useVideoProgress.ts
 import { useState, useEffect, useCallback, RefObject } from 'react';
 import api from '../services/api';
@@ -8,51 +9,48 @@ interface VideoProgress {
     completed: boolean;
 }
 
-/**
- * Custom hook لإدارة تقدم مشاهدة الفيديو
- * يقوم بتحميل آخر نقطة مشاهدة وحفظ التقدم تلقائياً
- */
+// 🔹 إضافة ثوابت للتوقيت
+const SAVE_INTERVAL = 10000; // 10 ثواني
+const MIN_SAVE_INTERVAL = 5000; // 5 ثواني كحد أدنى
+const DEBOUNCE_TIME = 2000; // 2 ثانية لمنع التكرار السريع
+
 export const useVideoProgress = (
   videoRef: RefObject<HTMLVideoElement | null>,
   videoId: number | undefined,
   isActive: boolean
 ) => {
-  // 🔹 حالة لمعرفة إذا كان videoId صالحاً
   const [isValidVideoId, setIsValidVideoId] = useState(false);
-  
-  // 🔹 التحقق من صحة videoId قبل الاستخدام
-  useEffect(() => {
-    if (videoId && typeof videoId === 'number' && videoId > 0) {
-      setIsValidVideoId(true);
-    } else {
-      setIsValidVideoId(false);
-      console.warn('⚠️ Invalid videoId in useVideoProgress:', videoId);
-    }
-  }, [videoId]);
-
   const [progress, setProgress] = useState<VideoProgress>({
     lastPosition: 0,
     watchTime: 0,
     completed: false,
   });
-  
   const [isLoading, setIsLoading] = useState(true);
   const [lastSaveTime, setLastSaveTime] = useState(0);
+  const [lastSaveAttempt, setLastSaveAttempt] = useState(0);
+  const [saveQueue, setSaveQueue] = useState<number[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
-  /**
-   * تحميل آخر نقطة مشاهدة عند mount
-   */
+  // 🔹 التحقق من صحة videoId
   useEffect(() => {
-    if (!isValidVideoId || !videoId) {
-      console.log('⏸️ Skipping progress load - invalid videoId');
+    if (videoId && typeof videoId === 'number' && videoId > 0) {
+      setIsValidVideoId(true);
+    } else {
+      setIsValidVideoId(false);
+    }
+  }, [videoId]);
+
+  // 🔹 تحميل التقدم
+  useEffect(() => {
+    if (!isValidVideoId || !videoId || !user) {
       setIsLoading(false);
       return;
     }
-    
+
     const loadProgress = async () => {
       try {
         setIsLoading(true);
-        console.log(`📊 Loading progress for valid video ${videoId}`);
+        console.log(`📊 Loading progress for video ${videoId}`);
         
         const response = await api.get(`/videos/${videoId}/progress`);
         const data = response.data;
@@ -63,10 +61,9 @@ export const useVideoProgress = (
           completed: data.completed || false
         });
 
-        console.log(`✅ Loaded progress for video ${videoId}:`, data);
+        console.log(`✅ Loaded progress for video ${videoId}`);
       } catch (error) {
         console.error('Failed to load video progress:', error);
-        // في حالة الخطأ، ابدأ من البداية
         setProgress({ lastPosition: 0, watchTime: 0, completed: false });
       } finally {
         setIsLoading(false);
@@ -76,79 +73,113 @@ export const useVideoProgress = (
     loadProgress();
   }, [videoId, isValidVideoId]);
 
-  /**
-   * تطبيق آخر نقطة مشاهدة على الفيديو
-   */
+  // 🔹 تطبيق نقطة الاستئناف
   useEffect(() => {
     if (!isLoading && videoRef.current && progress.lastPosition > 0 && isActive && isValidVideoId) {
-      // الانتقال إلى آخر نقطة مشاهدة (مع هامش 2 ثانية للخلف)
       const resumePosition = Math.max(0, progress.lastPosition - 2);
       videoRef.current.currentTime = resumePosition;
       console.log(`⏩ Resumed video ${videoId} at ${resumePosition}s`);
     }
   }, [isLoading, progress.lastPosition, videoId, isActive, isValidVideoId]);
 
-  /**
-   * حفظ التقدم الحالي
-   */
-  const saveProgress = useCallback(async (force = false) => {
-    if (!videoRef.current || !isValidVideoId || !videoId) {
-      console.log('⏸️ Skipping save - invalid videoId or ref');
+  // 🔹 دالة حفظ محسنة مع debounce وqueue
+  const saveProgress = useCallback(async (force = false, currentTime?: number) => {
+    if (!videoRef.current || !isValidVideoId || !videoId || isSaving) {
       return;
     }
 
-    const currentTime = videoRef.current.currentTime;
-    const duration = videoRef.current.duration;
     const now = Date.now();
-
-    // حفظ كل 5 ثواني فقط (أو عند force)
-    if (!force && now - lastSaveTime < 5000) {
+    const videoCurrentTime = currentTime !== undefined ? currentTime : videoRef.current.currentTime;
+    
+    // 🔹 منع التكرار السريع
+    if (!force && now - lastSaveAttempt < DEBOUNCE_TIME) {
+      console.log('⏸️ Debouncing save progress');
       return;
     }
-
+    
+    // 🔹 التحقق من الفاصل الزمني
+    if (!force && now - lastSaveTime < SAVE_INTERVAL) {
+      // 🔹 إضافة إلى queue بدلاً من الحفظ المباشر
+      if (saveQueue.length < 5) { // تحديد حجم queue
+        setSaveQueue(prev => [...prev, videoCurrentTime]);
+      }
+      return;
+    }
+    
+    setLastSaveAttempt(now);
+    
     try {
-      const completed = duration > 0 && (currentTime / duration) >= 0.9;
+      setIsSaving(true);
+      const duration = videoRef.current.duration;
+      const completed = duration > 0 && (videoCurrentTime / duration) >= 0.9;
 
+      console.log(`💾 Saving progress for video ${videoId}: ${videoCurrentTime.toFixed(1)}s`);
+      
       await api.post(`/videos/${videoId}/progress`, {
-        lastPosition: currentTime,
-        watchTime: Math.floor(currentTime),
+        lastPosition: videoCurrentTime,
+        watchTime: Math.floor(videoCurrentTime),
         completed
       });
 
       setLastSaveTime(now);
       setProgress(prev => ({
         ...prev,
-        lastPosition: currentTime,
-        watchTime: Math.floor(currentTime),
+        lastPosition: videoCurrentTime,
+        watchTime: Math.floor(videoCurrentTime),
         completed
       }));
 
-      console.log(`💾 Saved progress for video ${videoId}: ${currentTime}s`);
+      console.log(`✅ Saved progress for video ${videoId}`);
+      
+      // 🔹 معالجة queue بعد الحفظ الناجح
+      if (saveQueue.length > 0) {
+        setSaveQueue([]);
+      }
+      
     } catch (error) {
       console.error('Failed to save video progress:', error);
+    } finally {
+      setIsSaving(false);
     }
-  }, [videoId, lastSaveTime, isValidVideoId, videoRef]);
+  }, [videoId, lastSaveTime, lastSaveAttempt, isValidVideoId, videoRef, isSaving, saveQueue]);
 
-  /**
-   * حفظ التقدم تلقائياً كل 5 ثواني أثناء التشغيل
-   */
+  // 🔹 معالجة queue تلقائياً
   useEffect(() => {
-    if (!isActive || !videoRef.current || !isValidVideoId) return;
+    if (saveQueue.length > 0 && !isSaving) {
+      const processQueue = async () => {
+        const latestTime = Math.max(...saveQueue);
+        await saveProgress(false, latestTime);
+      };
+      
+      const timer = setTimeout(processQueue, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveQueue, isSaving, saveProgress]);
+
+  // 🔹 حفظ تلقائي كل 10 ثواني فقط
+  useEffect(() => {
+    if (!isActive || !videoRef.current || !isValidVideoId || !user) return;
 
     const interval = setInterval(() => {
-      saveProgress();
-    }, 5000);
+      if (videoRef.current && videoRef.current.currentTime > 0) {
+        saveProgress();
+      }
+    }, SAVE_INTERVAL);
 
-    return () => clearInterval(interval);
-  }, [isActive, saveProgress, isValidVideoId]);
+    return () => {
+      clearInterval(interval);
+      // 🔹 حفظ نهائي عند unmount
+      if (videoRef.current && videoRef.current.currentTime > 0 && isValidVideoId) {
+        saveProgress(true);
+      }
+    };
+  }, [isActive, saveProgress, isValidVideoId, user]);
 
-  /**
-   * حفظ التقدم عند إيقاف الفيديو أو تغييره
-   */
+  // 🔹 حفظ نهائي عند unmount
   useEffect(() => {
     return () => {
-      if (isValidVideoId && videoId) {
-        // حفظ نهائي عند unmount
+      if (videoRef.current && videoRef.current.currentTime > 0 && isValidVideoId && videoId) {
+        console.log(`💾 Final save on unmount for video ${videoId}`);
         saveProgress(true);
       }
     };
@@ -159,7 +190,8 @@ export const useVideoProgress = (
     isLoading,
     saveProgress,
     resumePosition: progress.lastPosition,
-    isValidVideoId // ✅ إرجاع حالة الصلاحية للاستخدام في المكونات
+    isValidVideoId,
+    isSaving
   };
 };
 
