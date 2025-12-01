@@ -99,23 +99,7 @@ const fetchVideos = async () => {
     setLoading(true);
 
     const response = await api.get('/videos');
-    let videosData = response.data.videos || [];
-
-    // ✅ تكوين رابط كامل لكل فيديو وصورته المصغرة
-videosData = videosData.map((v: any) => {
-  const videoFile = v.path ? v.path.split('/').pop() : '';
-  const thumbFile = v.thumbnail ? v.thumbnail.split('/').pop() : '';
-
-  return {
-    ...v,
-    video_url: `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos/${videoFile}`,
-    thumbnail: thumbFile
-      ? `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos/${thumbFile}`
-      : '/default-thumbnail.jpg'
-  };
-});
-
-
+    const videosData = response.data.videos || [];
 
     if (videosData.length > 0) {
       setVideos(videosData);
