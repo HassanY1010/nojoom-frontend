@@ -34,15 +34,19 @@ const CommentsBox: React.FC<CommentsBoxProps> = ({
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
   const { user } = useAuth();
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // 🔹 في CommentsBox.tsx - تحسين تحميل عدد التعليقات
   useEffect(() => {
-    if (isOpen && videoId) {
+    if (isOpen && videoId && !commentsLoaded) {
       loadComments();
       setupSocketListeners();
-      // ✅ التركيز على حقل الإدخال عند فتح الصندوق
+      setCommentsLoaded(true);
+      
       setTimeout(() => {
         inputRef.current?.focus();
       }, 300);
@@ -53,6 +57,11 @@ const CommentsBox: React.FC<CommentsBoxProps> = ({
       if (socket) {
         socket.off('new_comment');
         socket.off('comment_deleted');
+      }
+      
+      // 🔹 إعادة تعيين حالة التحميل عند الإغلاق
+      if (!isOpen) {
+        setCommentsLoaded(false);
       }
     };
   }, [isOpen, videoId]);
@@ -75,25 +84,31 @@ const CommentsBox: React.FC<CommentsBoxProps> = ({
             index === self.findIndex((t) => t.id === c.id)
           );
         });
-        onCommentAdded?.();
+        handleCommentAdded();
       }
     });
 
     socket.on('comment_deleted', (data: { commentId: number, videoId: number }) => {
       if (data.videoId === videoId) {
         setComments(prev => prev.filter(comment => comment.id !== data.commentId));
-        onCommentDeleted?.();
+        handleCommentDeleted();
       }
     });
   };
 
+  // 🔹 تعديل loadComments لمنع التكرار
   const loadComments = async () => {
     try {
+      // 🔹 التحقق من عدم التحميل حالياً
+      if (loading) return;
+      
       setLoading(true);
       const response = await commentApi.getComments(videoId);
-      // ✅ عكس الترتيب لعرض الجديد أولاً
+      
+      // 🔹 عكس الترتيب لعرض الجديد أولاً
       const reversedComments = (response.data.comments || []).reverse();
       setComments(reversedComments);
+      setCommentCount(reversedComments.length);
     } catch (error) {
       console.error('Failed to load comments:', error);
     } finally {
@@ -110,7 +125,7 @@ const CommentsBox: React.FC<CommentsBoxProps> = ({
       setSending(true);
       const response = await commentApi.postComment(videoId, newComment.trim());
       
-      onCommentAdded?.();
+      handleCommentAdded();
       
       const socket = socketService.getSocket();
       if (socket) {
@@ -150,7 +165,7 @@ const CommentsBox: React.FC<CommentsBoxProps> = ({
   const handleDeleteComment = async (commentId: number) => {
     try {
       await commentApi.deleteComment(commentId);
-      onCommentDeleted?.();
+      handleCommentDeleted();
       
       const socket = socketService.getSocket();
       if (socket) {
@@ -186,6 +201,18 @@ const CommentsBox: React.FC<CommentsBoxProps> = ({
       console.error('Failed to edit comment:', error);
       alert('Failed to edit comment. Please try again.');
     }
+  };
+
+  // 🔹 إزالة fetchCommentCount من useEffect الخارجي
+  // واستبداله بـ:
+  const handleCommentAdded = () => {
+    setCommentCount(prev => prev + 1);
+    onCommentAdded?.();
+  };
+
+  const handleCommentDeleted = () => {
+    setCommentCount(prev => Math.max(0, prev - 1));
+    onCommentDeleted?.();
   };
 
   const scrollToBottom = () => {
@@ -233,7 +260,6 @@ const CommentsBox: React.FC<CommentsBoxProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewComment(e.target.value);
     
@@ -280,7 +306,7 @@ const CommentsBox: React.FC<CommentsBoxProps> = ({
             {/* Header */}
             <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-white">
-                التعليقات ({comments.length})
+                التعليقات ({commentCount})
               </h3>
               <button
                 onClick={onClose}
