@@ -102,15 +102,25 @@ const fetchVideos = async () => {
     let videosData = response.data.videos || [];
 
     // ✅ تكوين رابط كامل لكل فيديو وصورته المصغرة
-    videosData = videosData.map((v: any) => ({
-      ...v,
-      video_url: v.video_url?.startsWith('http')
-        ? v.video_url
-        : `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos${v.video_url}`,
-      thumbnail: v.thumbnail?.startsWith('http')
-        ? v.thumbnail
-        : `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos${v.thumbnail}`
-    }));
+videosData = videosData.map((v: any) => {
+  // استخراج اسم الملف من path
+  const videoFile = v.path?.replace('/uploads/videos/', '') || '';
+  const thumbFile = v.thumbnail?.replace('/thumbnails/', '') || '';
+
+  return {
+    ...v,
+    video_url: v.video_url?.startsWith('http')
+      ? v.video_url
+      : `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos/${videoFile}`,
+
+    thumbnail: v.thumbnail?.startsWith('http')
+      ? v.thumbnail
+      : thumbFile
+        ? `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos/${thumbFile}`
+        : null
+  };
+});
+
 
     if (videosData.length > 0) {
       setVideos(videosData);
