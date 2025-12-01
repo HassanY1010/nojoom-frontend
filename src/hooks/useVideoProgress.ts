@@ -1,6 +1,7 @@
 // إصلاح كامل لـ useVideoProgress.ts
 // hooks/useVideoProgress.ts
 import { useState, useEffect, useCallback, RefObject } from 'react';
+import { useAuth } from '../context/AuthContext'; 
 import api from '../services/api';
 
 interface VideoProgress {
@@ -19,6 +20,7 @@ export const useVideoProgress = (
   videoId: number | undefined,
   isActive: boolean
 ) => {
+  const { user } = useAuth(); // ✅ جلب user من السياق
   const [isValidVideoId, setIsValidVideoId] = useState(false);
   const [progress, setProgress] = useState<VideoProgress>({
     lastPosition: 0,
