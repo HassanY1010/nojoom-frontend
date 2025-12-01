@@ -24,7 +24,7 @@ const Home: React.FC = () => {
   const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef(0);
-const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ دالة للبحث عن فيديو معين والانتقال إليه
   const findAndSetVideo = (videoId: number) => {
@@ -61,58 +61,132 @@ const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ دالة لجلب فيديو محدد
   const fetchSpecificVideo = async (videoId: number) => {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const response = await api.get(`/videos/${videoId}`);
-    const specificVideo = response.data.video;
+      const response = await api.get(`/videos/${videoId}`);
+      const specificVideo = response.data.video;
 
-    if (specificVideo) {
-      // 🟦 تعيين فيديو واحد فقط
-      setVideos([specificVideo]);
-      setCurrentIndex(0);
+      if (specificVideo) {
+        // 🟦 تعيين فيديو واحد فقط
+        setVideos([specificVideo]);
+        setCurrentIndex(0);
 
-      // 🟦 تتبع المشاهدة للفيديو
-      trackVideoView(0);
-    } else {
+        // 🟦 تتبع المشاهدة للفيديو
+        trackVideoView(0);
+      } else {
+        setError(t('failedLoadVideo'));
+      }
+    } catch (error) {
+      console.error('Failed to fetch specific video:', error);
       setError(t('failedLoadVideo'));
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Failed to fetch specific video:', error);
-    setError(t('failedLoadVideo'));
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-useEffect(() => {
-  fetchVideos();
+  // 🔹 إصلاح: تشغيل fetchVideos مرة واحدة فقط عند تحميل المكون
+  useEffect(() => {
+    if (loading) return; // 🔹 منع التكرار إذا كان التحميل قيد التنفيذ
+    
+    const loadData = async () => {
+      await fetchVideos();
+      
+      if (user) {
+        await fetchRecommendedVideos();
+        await loadWatchHistory();
+      }
+    };
+    
+    loadData();
+  }, []); // 🔹 مصفوفة dependencies فارغة لتشغيل مرة واحدة فقط
 
-  if (user) {
-    fetchRecommendedVideos();
-    loadWatchHistory();
-  }
-}, [user]);
+  // 🔹 إضافة cleanup function لمنع التكرار
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchVideosSafe = async () => {
+      if (!isMounted) return;
+      
+      try {
+        setLoading(true);
+        const response = await api.get('/videos');
+        
+        if (isMounted) {
+          const videosData = response.data.videos || [];
+          if (videosData.length > 0) {
+            setVideos(videosData);
+          } else {
+            setError(t('noVideosAvailable'));
+          }
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Failed to fetch videos:', error);
+          setError(t('failedLoadVideos'));
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    fetchVideosSafe();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-const fetchVideos = async () => {
-  try {
-    setLoading(true);
+  // 🔹 إصلاح: fetchRecommendedVideos مرة واحدة مع cleanup
+  useEffect(() => {
+    let isMounted = true;
+    
+    if (!user) return;
+    
+    const fetchRecommendedVideosSafe = async () => {
+      if (!isMounted) return;
+      
+      try {
+        const response = await api.get('/videos/recommended');
+        if (isMounted) {
+          setRecommendedVideos(response.data.videos || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Failed to fetch recommended videos:', error);
+          // 🔹 لا تعيد تعيين recommendedVideos إذا كانت فارغة - هذا يسبب دورة
+        }
+      }
+    };
+    
+    fetchRecommendedVideosSafe();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]); // 🔹 فقط عندما يتغير user.id
 
-    const response = await api.get('/videos');
-    const videosData = response.data.videos || [];
+  const fetchVideos = async () => {
+    try {
+      setLoading(true);
 
-    if (videosData.length > 0) {
-      setVideos(videosData);
-    } else {
-      setError(t('noVideosAvailable'));
+      const response = await api.get('/videos');
+      const videosData = response.data.videos || [];
+
+      if (videosData.length > 0) {
+        setVideos(videosData);
+      } else {
+        setError(t('noVideosAvailable'));
+      }
+    } catch (error) {
+      console.error('Failed to fetch videos:', error);
+      setError(t('failedLoadVideos'));
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Failed to fetch videos:', error);
-    setError(t('failedLoadVideos'));
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const fetchRecommendedVideos = async () => {
     try {
@@ -589,8 +663,9 @@ const fetchVideos = async () => {
             </div>
           </motion.div>
         )}
-<div style={{ fontFamily: 'Tajawal, sans-serif' }}>مرحبا بالعالم</div>
-<div style={{ fontFamily: 'Poppins, sans-serif' }}>Hello World</div>
+        
+        <div style={{ fontFamily: 'Tajawal, sans-serif' }}>مرحبا بالعالم</div>
+        <div style={{ fontFamily: 'Poppins, sans-serif' }}>Hello World</div>
 
         {/* Mobile Navigation Hint */}
         {!showNavigation && videos.length > 1 && (
