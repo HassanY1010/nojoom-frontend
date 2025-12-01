@@ -62,10 +62,21 @@ const VideoCard: React.FC<VideoCardProps> = ({
   const [useHlsStreaming, setUseHlsStreaming] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('unknown');
 
+  // 🔹 إضافة حالات جديدة
+  const [commentCountLoading, setCommentCountLoading] = useState(false);
+  const [commentsCountFetched, setCommentsCountFetched] = useState(false);
+  const [shareCountFetched, setShareCountFetched] = useState(false);
+  const [shareCountLoading, setShareCountLoading] = useState(false);
+
   // ✅ إصلاح: ترتيب المعاملات الصحيح لـ useVideoProgress
-  const videoProgressHook = user
+  const videoProgressHook = user && video?.id && video.id > 0
     ? useVideoProgress(videoRef, video.id, isActive)
     : null;
+
+  // 🔹 التحقق قبل الاستخدام
+  if (videoProgressHook && !videoProgressHook.isValidVideoId) {
+    console.warn('⚠️ Invalid videoId in VideoCard, skipping progress');
+  }
 
   // ✅ إصلاح: تمرير معامل واحد فقط
   const hlsHook = useHLS({ videoRef, manifestUrl });
@@ -140,26 +151,38 @@ const VideoCard: React.FC<VideoCardProps> = ({
     )
   };
 
-  // ✅ استخدام useCallback لتحسين الأداء - تم التصحيح
+  // ✅ في VideoCard.tsx - إصلاح fetchCommentCount
   const fetchCommentCount = useCallback(async () => {
+    // 🔹 التحقق من عدم التحميل حالياً
+    if (commentCountLoading) return;
+    
+    setCommentCountLoading(true);
     try {
       const response = await api.get(`/videos/${video.id}/comments/count`);
       setCommentCount(response.data.count);
     } catch (error) {
       console.error('Failed to fetch comment count:', error);
       setCommentCount(video.comment_count || 0);
+    } finally {
+      setCommentCountLoading(false);
     }
-  }, [video.id, video.comment_count]);
+  }, [video.id, video.comment_count, commentCountLoading]);
 
+  // 🔹 إصلاح fetchShareCount
   const fetchShareCount = useCallback(async () => {
+    if (shareCountLoading) return;
+    
+    setShareCountLoading(true);
     try {
       const response = await api.get(`/videos/${video.id}/shares/count`);
       setShareCount(response.data.shareCount);
     } catch (error) {
       console.error('Failed to fetch share count:', error);
       setShareCount(video.shares || 0);
+    } finally {
+      setShareCountLoading(false);
     }
-  }, [video.id, video.shares]);
+  }, [video.id, video.shares, shareCountLoading]);
 
   const handleNewComment = useCallback(() => {
     setCommentCount(prev => prev + 1);
@@ -221,19 +244,24 @@ const VideoCard: React.FC<VideoCardProps> = ({
     };
   }, []);
 
-  // 🚀 VIDEO TURBO ENGINE: تحميل HLS Manifest
+  // 🚀 VIDEO TURBO ENGINE: تحميل HLS Manifest مع fallback
   useEffect(() => {
     const loadManifest = async () => {
       try {
         const response = await api.get(`/videos/${video.id}/manifest`);
+        
         if (response.data.manifestUrl) {
           setProcessingStatus(response.data.processingStatus);
           if (response.data.processingStatus === 'completed') {
             setManifestUrl(response.data.manifestUrl);
             setUseHlsStreaming(true);
             console.log('✅ HLS streaming enabled for video:', video.id);
-          } else {
-            console.log('⏳ Video still processing, using MP4');
+          } else if (response.data.fallbackUrl) {
+            // 🔹 استخدام fallback إذا كان متوفراً
+            console.log('🔄 Using MP4 fallback for video:', video.id);
+            setUseHlsStreaming(false);
+            // تحديث مصدر الفيديو مع fallback
+            video.path = response.data.fallbackUrl;
           }
         }
       } catch (error) {
@@ -247,31 +275,49 @@ const VideoCard: React.FC<VideoCardProps> = ({
     }
   }, [video.id, isActive]);
 
+  // في VideoCard.tsx - تحسين تسجيل وقت المشاهدة
   const recordWatchTime = () => {
-    if (watchStartTime && user && totalWatchTime > 0) {
+    if (!user || !video?.id || video.id <= 0) return;
+    
+    if (watchStartTime && totalWatchTime > 0) {
       onWatchTimeUpdate?.(totalWatchTime);
 
-      // 🚀 VIDEO TURBO ENGINE: استخدام Progress Hook للحفظ الفوري
+      // 🔹 استخدام debounce للحفظ
       if (videoProgressHook && typeof videoProgressHook.saveProgress === 'function') {
-        videoProgressHook.saveProgress(true); // حفظ فوري
+        // تأخير الحفظ قليلاً لتجميع التحديثات
+        const saveTimer = setTimeout(() => {
+          videoProgressHook.saveProgress(true);
+        }, 1000);
+        
+        return () => clearTimeout(saveTimer);
       } else {
-        // Fallback للطريقة القديمة
-        api.post('/user/watch-history', {
-          videoId: video.id,
-          watchTime: totalWatchTime,
-          completed: progress >= 80
-        }).catch(console.error);
+        // Fallback مع debounce
+        const saveTimer = setTimeout(() => {
+          api.post('/user/watch-history', {
+            videoId: video.id,
+            watchTime: totalWatchTime,
+            completed: progress >= 80
+          }).catch(console.error);
+        }, 2000);
+        
+        return () => clearTimeout(saveTimer);
       }
     }
   };
 
+  // 🔹 تحسين timeupdate listener
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
+    let lastUpdateTime = 0;
+    const UPDATE_INTERVAL = 5000; // تحديث كل 5 ثواني
+
     const updateProgress = () => {
       const currentTime = videoElement.currentTime;
       const duration = videoElement.duration;
+      const now = Date.now();
+      
       if (duration > 0) {
         const newProgress = (currentTime / duration) * 100;
         setProgress(newProgress);
@@ -280,8 +326,10 @@ const VideoCard: React.FC<VideoCardProps> = ({
           setTotalWatchTime(currentTime);
         }
 
-        if (user && currentTime % 10 < 0.1) {
+        // 🔹 تحديث أقل تكراراً
+        if (user && now - lastUpdateTime > UPDATE_INTERVAL) {
           onWatchTimeUpdate?.(currentTime);
+          lastUpdateTime = now;
         }
       }
     };
@@ -296,25 +344,21 @@ const VideoCard: React.FC<VideoCardProps> = ({
     setWatchStartTime(null);
   }, [video.id]);
 
+  // 🔹 تعديل useEffect ليكون أكثر كفاءة
   useEffect(() => {
-    if (showComments && video.id) {
+    if (showComments && video.id && !commentsCountFetched) {
       fetchCommentCount();
+      setCommentsCountFetched(true);
     }
-  }, [showComments, video.id, fetchCommentCount]);
+  }, [showComments, video.id, commentsCountFetched, fetchCommentCount]);
 
+  // 🔹 تعديل الـ useEffect الرئيسي
   useEffect(() => {
-    if (video.id && isActive) {
+    if (video.id && isActive && !shareCountFetched) {
       fetchShareCount();
-      fetchCommentCount();
-
-      const interval = setInterval(() => {
-        fetchShareCount();
-        fetchCommentCount();
-      }, 30000);
-
-      return () => clearInterval(interval);
+      setShareCountFetched(true);
     }
-  }, [video.id, isActive, fetchShareCount, fetchCommentCount]);
+  }, [video.id, isActive, shareCountFetched, fetchShareCount]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartY(e.touches[0].clientY);
@@ -575,7 +619,14 @@ const VideoCard: React.FC<VideoCardProps> = ({
       >
         {/* 🚀 VIDEO TURBO ENGINE: استخدام HLS إذا كان متاحاً، وإلا استخدام MP4 العادي */}
         {!useHlsStreaming && (
-          <source src={`${import.meta.env.VITE_API_URL}${video.path}`} type="video/mp4" />
+          <source
+            src={
+              video.path?.startsWith('http')
+                ? video.path
+                : `https://ulcaeqbffsegiibgllrh.supabase.co/storage/v1/object/public/videos${video.path}`
+            }
+            type="video/mp4"
+          />
         )}
         Your browser does not support the video tag.
       </video>
